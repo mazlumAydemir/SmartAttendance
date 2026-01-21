@@ -1,7 +1,11 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models; // Swagger için gerekli
+using SmartAttendance.Application.Interfaces;
 using SmartAttendance.Infrastructure.Persistence;
 using SmartAttendance.Infrastructure.Services;
-using SmartAttendance.Application.Interfaces; // DÜZELTME: Bu satýr eksikti, eklendi.
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,12 +14,67 @@ builder.Services.AddDbContext<SmartAttendanceDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 2. Servisleri Baðla (Dependency Injection)
-// Artýk AuthService, IAuthService'i miras aldýðý için bu satýr hata vermez.
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
+
+// 3. JWT Authentication Ayarlarý (HATAYI ÇÖZEN KISIM)
+// Sisteme "Bearer" token kullanacaðýmýzý ve bunu nasýl doðrulayacaðýný öðretiyoruz.
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// 4. Swagger Ayarlarý (Authorize Butonu Eklemek Ýçin)
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Smart Attendance API", Version = "v1" });
+
+    // Swagger ekranýna "Kilit" butonu ekler
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. \r\n\r\n Enter 'Bearer' [space] and then your token in the text input below.\r\n\r\nExample: \"Bearer 12345abcdef\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+
+            },
+            new List<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
@@ -27,28 +86,28 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthorization();
+
+// 5. MÝDDLEWARE SIRALAMASI ÇOK ÖNEMLÝDÝR!
+app.UseAuthentication(); // <-- Önce Kimlik Doðrulama (Kimsin?)
+app.UseAuthorization();  // <-- Sonra Yetkilendirme (Girebilir misin?)
+
 app.MapControllers();
 
-// --- SEED DATA (Test Verileri) ---
+// --- SEED DATA ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<SmartAttendanceDbContext>();
-
-        // Veritabanýný oluþtur veya güncelle
         context.Database.Migrate();
-
-        // Test kullanýcýlarýný ekle
         await DataSeeder.SeedAsync(context);
     }
     catch (Exception ex)
     {
-        Console.WriteLine("Seed data yüklenirken hata oluþtu: " + ex.Message);
+        Console.WriteLine("Seed data hatasý: " + ex.Message);
     }
 }
-// ---------------------------------
+// -----------------
 
 app.Run();
