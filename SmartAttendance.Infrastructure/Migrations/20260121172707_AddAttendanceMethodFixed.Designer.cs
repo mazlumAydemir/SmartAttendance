@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartAttendance.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using SmartAttendance.Infrastructure.Persistence;
 namespace SmartAttendance.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartAttendanceDbContext))]
-    partial class SmartAttendanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260121172707_AddAttendanceMethodFixed")]
+    partial class AddAttendanceMethodFixed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -42,7 +45,7 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Property<double>("DistanceFromSessionCenter")
                         .HasColumnType("float");
 
-                    b.Property<string>("FaceSnapshotUrl")
+                    b.Property<string>("InvalidReason")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsDeleted")
@@ -61,7 +64,6 @@ namespace SmartAttendance.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("UsedDeviceId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");

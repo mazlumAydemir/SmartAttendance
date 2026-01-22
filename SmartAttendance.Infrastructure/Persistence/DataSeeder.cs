@@ -42,29 +42,36 @@ namespace SmartAttendance.Infrastructure.Persistence
                 var courses = new List<Course>
                 {
                     new Course { CourseCode = "CMPE428", CourseName = "Software Engineering", InstructorId = instructor.Id },
-                    new Course { CourseCode = "CMPE419", CourseName = "Mobile App Development", InstructorId = instructor.Id }
+                    new Course { CourseCode = "CMPE419", CourseName = "Mobile App Development", InstructorId = instructor.Id },
+                    
+                    // YENİ EKLENEN DERS (Birleşik ders testi için)
+                    new Course { CourseCode = "CMSE428", CourseName = "Software Engineering (SE Dept)", InstructorId = instructor.Id }
                 };
                 await context.Courses.AddRangeAsync(courses);
                 await context.SaveChangesAsync();
             }
 
-            // 4. Ders Kayıtları (Ahmet CMPE428 alsın, Ayşe ikisini de alsın)
+            // 4. Ders Kayıtları
             if (!await context.CourseEnrollments.AnyAsync())
             {
-                var ahmet = await context.Users.FirstAsync(u => u.Email.StartsWith("ahmet"));
-                var ayse = await context.Users.FirstAsync(u => u.Email.StartsWith("ayse"));
-                var c428 = await context.Courses.FirstAsync(c => c.CourseCode == "CMPE428");
-                var c419 = await context.Courses.FirstAsync(c => c.CourseCode == "CMPE419");
+                var ahmet = await context.Users.FirstAsync(u => u.Email.StartsWith("ahmet")); // Bilgisayar Müh.
+                var ayse = await context.Users.FirstAsync(u => u.Email.StartsWith("ayse"));   // Yazılım Müh.
+
+                var cmpe428 = await context.Courses.FirstAsync(c => c.CourseCode == "CMPE428");
+                var cmpe419 = await context.Courses.FirstAsync(c => c.CourseCode == "CMPE419");
+                var cmse428 = await context.Courses.FirstAsync(c => c.CourseCode == "CMSE428");
 
                 await context.CourseEnrollments.AddRangeAsync(new List<CourseEnrollment>
                 {
-                    new CourseEnrollment { StudentId = ahmet.Id, CourseId = c428.Id },
-                    new CourseEnrollment { StudentId = ayse.Id, CourseId = c428.Id },
-                    new CourseEnrollment { StudentId = ayse.Id, CourseId = c419.Id }
+                    // Ahmet sadece CMPE428 alıyor
+                    new CourseEnrollment { StudentId = ahmet.Id, CourseId = cmpe428.Id },
+                    
+                    // Ayşe ise Yazılım Müh. dersi olan CMSE428'i alıyor (Ve CMPE419)
+                    new CourseEnrollment { StudentId = ayse.Id, CourseId = cmse428.Id },
+                    new CourseEnrollment { StudentId = ayse.Id, CourseId = cmpe419.Id }
                 });
                 await context.SaveChangesAsync();
             }
-
             // 5. DERS PROGRAMI (TIMETABLE) - İŞTE 6 SAAT KURALI BURADA
             if (!await context.CourseSchedules.AnyAsync())
             {

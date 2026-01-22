@@ -16,7 +16,7 @@ builder.Services.AddDbContext<SmartAttendanceDbContext>(options =>
 // 2. Servisleri Baðla (Dependency Injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
-
+builder.Services.AddScoped<IAttendanceService, SmartAttendance.Infrastructure.Services.AttendanceService>();
 // 3. JWT Authentication Ayarlarý (HATAYI ÇÖZEN KISIM)
 // Sisteme "Bearer" token kullanacaðýmýzý ve bunu nasýl doðrulayacaðýný öðretiyoruz.
 builder.Services.AddAuthentication(options =>
