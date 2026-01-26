@@ -10,6 +10,6 @@ namespace SmartAttendance.Application.DTOs.Auth
     {
         public string Email { get; set; }
         public string Password { get; set; }
-        public string? DeviceId { get; set; } // Giriş yaparken cihaz kontrolü için
+       
     }
 }

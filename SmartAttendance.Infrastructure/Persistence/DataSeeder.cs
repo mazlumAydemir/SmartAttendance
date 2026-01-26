@@ -16,8 +16,8 @@ namespace SmartAttendance.Infrastructure.Persistence
                 {
                     new User { FullName = "Sistem Admin", Email = "admin@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Admin },
                     new User { FullName = "Yıltan Bitirim", Email = "yiltan@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
-                    new User { FullName = "Ahmet Yılmaz", Email = "ahmet@std.smart.edu.tr", PasswordHash = passHash, Role = UserRole.Student, RegisteredDeviceId = "device_ahmet_001" },
-                    new User { FullName = "Ayşe Demir", Email = "ayse@std.smart.edu.tr", PasswordHash = passHash, Role = UserRole.Student, RegisteredDeviceId = "device_ayse_002" }
+                    new User { FullName = "Ahmet Yılmaz", Email = "ahmet@std.smart.edu.tr", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Ayşe Demir", Email = "ayse@std.smart.edu.tr", PasswordHash = passHash, Role = UserRole.Student }
                 };
                 await context.Users.AddRangeAsync(users);
                 await context.SaveChangesAsync();

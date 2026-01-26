@@ -19,7 +19,7 @@ namespace SmartAttendance.Domain.Entities
         public UserRole Role { get; set; }
 
         // Güvenlik
-        public string? RegisteredDeviceId { get; set; }
+       
         public string? FaceEncoding { get; set; }
 
         // İlişkiler (Navigation Properties)

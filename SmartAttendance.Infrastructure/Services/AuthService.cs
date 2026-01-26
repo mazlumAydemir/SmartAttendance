@@ -1,33 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using SmartAttendance.Application.DTOs.Auth;
 using SmartAttendance.Application.Interfaces;
 using SmartAttendance.Domain.Entities;
 using SmartAttendance.Infrastructure.Persistence;
+using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using SmartAttendance.Application.DTOs.Auth;
-using SmartAttendance.Application.Interfaces; // Interface referansı
-using SmartAttendance.Domain.Entities;
-using SmartAttendance.Infrastructure.Persistence;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using System.Threading.Tasks;
 
 namespace SmartAttendance.Infrastructure.Services
 {
-    // DÜZELTME: ": IAuthService" ibaresi eklendi.
     public class AuthService : IAuthService
     {
         private readonly SmartAttendanceDbContext _context;
@@ -48,17 +34,18 @@ namespace SmartAttendance.Infrastructure.Services
 
             // 2. Şifreyi kontrol et
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash);
+
+            // Eğer BCrypt kullanmıyorsan düz metin kontrolü için:
+            // if (user.PasswordHash != model.Password)
+
             if (!isPasswordValid)
                 throw new Exception("Kullanıcı bulunamadı veya şifre hatalı.");
 
-            // 3. Cihaz Kontrolü (Sadece öğrenciler için)
-            if (user.Role == Domain.Enums.UserRole.Student && !string.IsNullOrEmpty(user.RegisteredDeviceId))
-            {
-                if (model.DeviceId != user.RegisteredDeviceId)
-                    throw new Exception("Kayıtlı cihazınızdan giriş yapmalısınız! Cihaz ID uyuşmuyor.");
-            }
+            // --- CİHAZ KONTROLÜ (Step 3) BURADAN KALDIRILDI ---
+            // Artık cihaz kontrolünü AttendanceService içinde yapıyoruz.
+            // --------------------------------------------------
 
-            // 4. Token Üret
+            // 3. Token Üret
             return GenerateJwtToken(user);
         }
 
