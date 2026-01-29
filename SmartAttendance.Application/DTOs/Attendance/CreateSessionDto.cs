@@ -10,8 +10,7 @@ namespace SmartAttendance.Application.DTOs.Attendance
         public AttendanceMethod Method { get; set; }
         public bool RequireFaceVerification { get; set; }
         public bool RequireDeviceVerification { get; set; } = true;
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
+   
         public int RadiusMeters { get; set; } = 50;
 
         // YENİ EKLENEN ALAN: Tarih ve Saat Seçimi
