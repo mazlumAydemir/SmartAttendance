@@ -178,5 +178,45 @@ namespace SmartAttendance.WebAPI.Controllers
             var result = await _attendanceService.GetSessionStudentListAsync(sessionId);
             return Ok(result);
         }
+        // YARDIMCI: BU DERSİ KİMLER ALIYOR?
+        [HttpGet("course-students/{courseId}")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> GetCourseStudents(int courseId)
+        {
+            var result = await _attendanceService.GetEnrolledStudentsByCourseAsync(courseId);
+            return Ok(result);
+        }
+
+        // HOCA: BENİM DERSLERİMİ ALAN TÜM ÖĞRENCİLER
+        [HttpGet("my-students")]
+        [Authorize(Roles = "Instructor")]
+        public async Task<IActionResult> GetMyStudents()
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+            int instructorId = int.Parse(userIdString);
+
+            var result = await _attendanceService.GetMyStudentsAsync(instructorId);
+            return Ok(result);
+        }
+        // HOCA: SEÇTİĞİM DERSİ KİMLER ALIYOR?
+        [HttpGet("instructor-course-students/{courseId}")]
+        [Authorize(Roles = "Instructor")]
+        public async Task<IActionResult> GetStudentsBySpecificCourse(int courseId)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+            int instructorId = int.Parse(userIdString);
+
+            try
+            {
+                var result = await _attendanceService.GetStudentsByCourseIdAsync(courseId, instructorId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }
