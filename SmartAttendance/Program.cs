@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SmartAttendance.Application.Interfaces;
+using SmartAttendance.Infrastructure.BackgroundServices;
 using SmartAttendance.Infrastructure.Persistence;
 using SmartAttendance.Infrastructure.Services;
 using System.Text;
@@ -29,7 +30,7 @@ builder.Services.AddDbContext<SmartAttendanceDbContext>(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IAttendanceService, SmartAttendance.Infrastructure.Services.AttendanceService>();
-
+builder.Services.AddHostedService<AutoAttendanceWorker>();
 // --- 4. JWT AUTHENTICATION AYARLARI ---
 builder.Services.AddAuthentication(options =>
 {

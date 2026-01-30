@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartAttendance.Application.DTOs.Attendance;
+using SmartAttendance.Application.DTOs.Course;
 using SmartAttendance.Application.Interfaces;
 using SmartAttendance.Domain.Enums;
 using System.Security.Claims;
@@ -212,6 +213,22 @@ namespace SmartAttendance.WebAPI.Controllers
             {
                 var result = await _attendanceService.GetStudentsByCourseIdAsync(courseId, instructorId);
                 return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        // HOCA: DERS AYARLARINI KAYDET
+        [HttpPost("update-course-settings")]
+        [Authorize(Roles = "Instructor")]
+        public async Task<IActionResult> UpdateCourseSettings([FromBody] CourseSettingsDto model)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            try
+            {
+                await _attendanceService.UpdateCourseSettingsAsync(model, userId);
+                return Ok(new { message = "Ders ayarları güncellendi." });
             }
             catch (Exception ex)
             {
