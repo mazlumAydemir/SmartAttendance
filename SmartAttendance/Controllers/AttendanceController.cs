@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SmartAttendance.Application.DTOs.Attendance;
 using SmartAttendance.Application.Interfaces;
+using SmartAttendance.Domain.Enums;
 using System.Security.Claims;
 
 namespace SmartAttendance.WebAPI.Controllers
@@ -121,6 +122,61 @@ namespace SmartAttendance.WebAPI.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+        // HOCA: VERDİĞİM DERSLERİ GETİR
+        [HttpGet("my-courses")]
+        [Authorize(Roles = "Instructor")] // Sadece Hoca
+        public async Task<IActionResult> GetMyCourses()
+        {
+            // Token'dan Hoca ID'sini al
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+            int instructorId = int.Parse(userIdString);
+
+            var result = await _attendanceService.GetInstructorCoursesAsync(instructorId);
+            return Ok(result);
+        }
+        // HOCA: OTURUMDAKİ ÖĞRENCİ LİSTESİNİ VE DURUMLARINI GÖR
+        [HttpGet("session-records/{sessionId}")]
+        [Authorize(Roles = "Instructor")]
+        public async Task<IActionResult> GetSessionRecords(int sessionId)
+        {
+            // Güvenlik: Hoca sadece kendi oturumunu görebilmeli (Opsiyonel ama iyi olur)
+            // Şimdilik direkt listeyi dönüyoruz.
+            var result = await _attendanceService.GetSessionAttendanceAsync(sessionId);
+            return Ok(result);
+        }
+
+        // HOCA: ÖĞRENCİ DURUMUNU GÜNCELLE (Var/Yok/İzinli)
+        [HttpPost("update-status")]
+        [Authorize(Roles = "Instructor")] // Sadece Hoca Yapabilir
+        public async Task<IActionResult> UpdateStatus([FromBody] ManualAttendanceDto model)
+        {
+            try
+            {
+                // Enum kontrolü (Opsiyonel ama iyi olur)
+                if (!Enum.IsDefined(typeof(AttendanceStatus), model.Status))
+                {
+                    return BadRequest(new { message = "Geçersiz durum kodu! (1=Var, 2=Yok, 3=İzinli)" });
+                }
+
+                await _attendanceService.UpdateAttendanceStatusAsync(model);
+
+                return Ok(new { message = "Öğrenci durumu başarıyla güncellendi." });
+            }
+            catch (Exception ex)
+            {
+                // Servisten gelen hatayı (Örn: Öğrenci bulunamadı) ekrana bas
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        // HOCA: TÜM SINIF LİSTESİNİ GÖR (GELEN VE GELMEYENLER)
+        [HttpGet("full-class-list/{sessionId}")]
+        [Authorize(Roles = "Instructor")]
+        public async Task<IActionResult> GetFullClassList(int sessionId)
+        {
+            var result = await _attendanceService.GetSessionStudentListAsync(sessionId);
+            return Ok(result);
         }
     }
 }
