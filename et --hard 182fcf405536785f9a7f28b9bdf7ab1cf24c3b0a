@@ -1,0 +1,47 @@
+[33mcommit 182fcf405536785f9a7f28b9bdf7ab1cf24c3b0a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Fri Jan 30 17:40:34 2026 +0300
+
+    otomatikYoklamaTamam
+
+[33mcommit 9b5c5faa5906a75331a1d4a1a9229b503bff1cf3[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Fri Jan 30 15:29:30 2026 +0300
+
+    otomatikYoklamaAlinmadanOnceHerseyTamam
+
+[33mcommit 9f10978dd8b2dae6c7c8c5d8f770799cc2042110[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Fri Jan 30 13:34:18 2026 +0300
+
+    izinliYapmaModuluTamamlandi
+
+[33mcommit b1423278d231c3bf8ff4ffd81094266be5837690[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Thu Jan 29 10:19:18 2026 +0300
+
+    yoklamaveAcmadahilHerseyTamam
+
+[33mcommit bba8a02e8fb570fe9882080b0134f468e2154749[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Mon Jan 26 07:58:48 2026 +0300
+
+    konumSinifaGoreAyarlandi
+
+[33mcommit 59ea4a4576d7037f58aa2496900c5172fe978cbf[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Thu Jan 22 13:03:05 2026 +0300
+
+    tarihDahiSeciliyoraKadarCalisiyor
+
+[33mcommit 93726313112e4ace84c183c1dc51fa1017cf9286[m[33m ([m[1;32mdersprogramiEklenecek[m[33m)[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Wed Jan 21 13:13:16 2026 +0300
+
+    Ders programi modulu tamamlandi
+
+[33mcommit 9c46b90d701e1ebc6153fea19284e3c96053bcc8[m[33m ([m[1;32mmaster[m[33m)[m
+Author: mazlum <mazlumaydemir10@gmail.com>
+Date:   Wed Jan 21 11:54:59 2026 +0300
+
+    Proje baslangic ayarlari ve gitignore eklendi
