@@ -40,7 +40,6 @@ namespace SmartAttendance.Infrastructure.Migrations
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     SchoolNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Role = table.Column<int>(type: "int", nullable: false),
-                    RegisteredDeviceId = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     FaceEncoding = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false)
@@ -57,16 +56,17 @@ namespace SmartAttendance.Infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     SessionCode = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    InstructorId = table.Column<int>(type: "int", nullable: false),
                     StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EndTime = table.Column<DateTime>(type: "datetime2", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    InstructorId = table.Column<int>(type: "int", nullable: false),
+                    Method = table.Column<int>(type: "int", nullable: false),
+                    RequireFaceVerification = table.Column<bool>(type: "bit", nullable: false),
+                    RequireDeviceVerification = table.Column<bool>(type: "bit", nullable: false),
+                    RequireLocationVerification = table.Column<bool>(type: "bit", nullable: false),
                     SnapshotLatitude = table.Column<double>(type: "float", nullable: true),
                     SnapshotLongitude = table.Column<double>(type: "float", nullable: true),
                     SnapshotRadius = table.Column<int>(type: "int", nullable: true),
-                    RequireFaceVerification = table.Column<bool>(type: "bit", nullable: false),
-                    RequireLocationVerification = table.Column<bool>(type: "bit", nullable: false),
-                    RequireDeviceVerification = table.Column<bool>(type: "bit", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
@@ -90,8 +90,12 @@ namespace SmartAttendance.Infrastructure.Migrations
                     CourseCode = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CourseName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     InstructorId = table.Column<int>(type: "int", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
+                    IsAutoAttendanceEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    DefaultMethod = table.Column<int>(type: "int", nullable: false),
+                    DefaultDurationMinutes = table.Column<int>(type: "int", nullable: false),
+                    DefaultRadiusMeters = table.Column<int>(type: "int", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -113,12 +117,15 @@ namespace SmartAttendance.Infrastructure.Migrations
                     AttendanceSessionId = table.Column<int>(type: "int", nullable: false),
                     StudentId = table.Column<int>(type: "int", nullable: false),
                     CheckInTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsFaceVerified = table.Column<bool>(type: "bit", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsDeviceVerified = table.Column<bool>(type: "bit", nullable: false),
-                    DistanceFromSessionCenter = table.Column<double>(type: "float", nullable: false),
-                    UsedDeviceId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsFaceVerified = table.Column<bool>(type: "bit", nullable: false),
+                    FaceSnapshotUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsValid = table.Column<bool>(type: "bit", nullable: false),
-                    InvalidReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    UsedDeviceId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DistanceFromSessionCenter = table.Column<double>(type: "float", nullable: false),
+                    AttendanceSessionId1 = table.Column<int>(type: "int", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
@@ -131,6 +138,11 @@ namespace SmartAttendance.Infrastructure.Migrations
                         principalTable: "AttendanceSessions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_AttendanceRecords_AttendanceSessions_AttendanceSessionId1",
+                        column: x => x.AttendanceSessionId1,
+                        principalTable: "AttendanceSessions",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_AttendanceRecords_Users_StudentId",
                         column: x => x.StudentId,
@@ -263,6 +275,11 @@ namespace SmartAttendance.Infrastructure.Migrations
                 name: "IX_AttendanceRecords_AttendanceSessionId",
                 table: "AttendanceRecords",
                 column: "AttendanceSessionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AttendanceRecords_AttendanceSessionId1",
+                table: "AttendanceRecords",
+                column: "AttendanceSessionId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AttendanceRecords_StudentId",

@@ -12,8 +12,8 @@ using SmartAttendance.Infrastructure.Persistence;
 namespace SmartAttendance.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartAttendanceDbContext))]
-    [Migration("20260130123124_AddAutoAttendanceSettings")]
-    partial class AddAutoAttendanceSettings
+    [Migration("20260203175912_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,6 +34,9 @@ namespace SmartAttendance.Infrastructure.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("AttendanceSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AttendanceSessionId1")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CheckInTime")
@@ -75,6 +78,8 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AttendanceSessionId");
+
+                    b.HasIndex("AttendanceSessionId1");
 
                     b.HasIndex("StudentId");
 
@@ -133,6 +138,8 @@ namespace SmartAttendance.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("InstructorId");
 
                     b.ToTable("AttendanceSessions");
                 });
@@ -309,6 +316,54 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.ToTable("SessionCourseLinks");
                 });
 
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.StudentExcuse", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CourseId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DocumentPath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReasonTitle")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("StudentExcuses");
+                });
+
             modelBuilder.Entity("SmartAttendance.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -357,6 +412,10 @@ namespace SmartAttendance.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SmartAttendance.Domain.Entities.AttendanceSession", null)
+                        .WithMany("AttendanceRecords")
+                        .HasForeignKey("AttendanceSessionId1");
+
                     b.HasOne("SmartAttendance.Domain.Entities.User", "Student")
                         .WithMany()
                         .HasForeignKey("StudentId")
@@ -366,6 +425,17 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Navigation("AttendanceSession");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.AttendanceSession", b =>
+                {
+                    b.HasOne("SmartAttendance.Domain.Entities.User", "Instructor")
+                        .WithMany()
+                        .HasForeignKey("InstructorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Instructor");
                 });
 
             modelBuilder.Entity("SmartAttendance.Domain.Entities.Course", b =>
@@ -436,8 +506,27 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Navigation("Course");
                 });
 
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.StudentExcuse", b =>
+                {
+                    b.HasOne("SmartAttendance.Domain.Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId");
+
+                    b.HasOne("SmartAttendance.Domain.Entities.User", "Student")
+                        .WithMany("Excuses")
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("Student");
+                });
+
             modelBuilder.Entity("SmartAttendance.Domain.Entities.AttendanceSession", b =>
                 {
+                    b.Navigation("AttendanceRecords");
+
                     b.Navigation("RelatedCourses");
                 });
 
@@ -451,6 +540,8 @@ namespace SmartAttendance.Infrastructure.Migrations
             modelBuilder.Entity("SmartAttendance.Domain.Entities.User", b =>
                 {
                     b.Navigation("Enrollments");
+
+                    b.Navigation("Excuses");
 
                     b.Navigation("GivenCourses");
                 });

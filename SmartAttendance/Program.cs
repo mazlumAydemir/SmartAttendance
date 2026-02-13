@@ -91,11 +91,10 @@ var app = builder.Build();
 
 // --- 6. HTTP REQUEST PIPELINE (Sýralama Önemlidir) ---
 
-if (app.Environment.IsDevelopment())
-{
+
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+
 
 // CORS politikasýný etkinleþtir
 app.UseCors("AllowFlutter");
