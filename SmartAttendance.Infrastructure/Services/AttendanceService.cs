@@ -98,7 +98,7 @@ namespace SmartAttendance.Infrastructure.Services
                 QrCodeContent = sessionCode
             };
         }
-
+        /*
         // ==================================================================================
         // 2. ÖĞRENCİ: QR İLE KATILMA
         // ==================================================================================
@@ -290,7 +290,207 @@ namespace SmartAttendance.Infrastructure.Services
                 CourseName = "Ders Eşleşti"
             };
         }
+       */
+        // ==================================================================================
+        // 2. ÖĞRENCİ: QR İLE KATILMA (ID + QR MATCH KONTROLÜ + METHOD CHECK)
+        // ==================================================================================
+        public async Task<JoinSessionResponseDto> JoinSessionAsync(JoinSessionDto model, int studentId)
+        {
+            // 1. QR Kod Çözümleme
+            var parts = model.QrContent.Split("||");
+            if (parts.Length != 2) throw new Exception("Geçersiz QR Kod formatı!");
 
+            string qrCodeInImage = parts[0];
+            if (!long.TryParse(parts[1], out long expirationTicks)) throw new Exception("QR Kod bozuk!");
+
+            if (DateTime.UtcNow > new DateTime(expirationTicks))
+                throw new Exception("QR Kodunun süresi dolmuş! Lütfen yenisini okutun.");
+
+            // 2. OTURUMU GETİR (ID İLE)
+            var session = await _context.AttendanceSessions
+                .Include(s => s.RelatedCourses)
+                .FirstOrDefaultAsync(s => s.Id == model.SessionId);
+
+            if (session == null) throw new Exception("Seçilen oturum bulunamadı.");
+            if (!IsSessionValid(session)) throw new Exception("Bu oturum sonlandırılmış.");
+
+            // 🔥 GÜVENLİK KİLİDİ 1: YÖNTEM KONTROLÜ 🔥
+            if (session.Method != AttendanceMethod.QrCode)
+            {
+                throw new Exception("Bu ders QR Kod yöntemiyle açılmamış! Lütfen hoca tarafından belirtilen yöntemi (Konum veya Yüz) kullanın.");
+            }
+
+            // 🔥 GÜVENLİK KİLİDİ 2: QR EŞLEŞMESİ 🔥
+            if (session.SessionCode != qrCodeInImage)
+            {
+                throw new Exception("Seçtiğiniz ders ile okuttuğunuz QR kod eşleşmiyor! Yanlış sınıfın kodunu okutuyor olabilirsiniz.");
+            }
+
+            // 3. ÖĞRENCİ KONTROLÜ
+            var student = await _context.Users
+                .Include(u => u.Enrollments)
+                .FirstOrDefaultAsync(u => u.Id == studentId);
+            if (student == null) throw new Exception("Öğrenci bulunamadı.");
+
+            // 4. CİHAZ KONTROLÜ
+            await CheckDeviceUniquenessAsync(session.Id, model.DeviceId, studentId, session.RequireDeviceVerification);
+
+            // 5. KONUM KONTROLÜ (Hoca istediyse)
+            if (session.RequireLocationVerification)
+            {
+                double distance = CalculateDistance(session.SnapshotLatitude ?? 0, session.SnapshotLongitude ?? 0, model.Latitude, model.Longitude);
+                if (distance > (session.SnapshotRadius ?? 50))
+                    throw new Exception($"QR Kod doğru ama sınıftan uzaktasınız! Mesafe: {distance:0.0}m.");
+            }
+
+            // 6. DERS KAYDI KONTROLÜ
+            var sessionCourseIds = session.RelatedCourses.Select(rc => rc.CourseId).ToList();
+            var studentCourseIds = student.Enrollments.Select(e => e.CourseId).ToList();
+
+            if (!sessionCourseIds.Intersect(studentCourseIds).Any())
+                throw new Exception("Bu oturuma ait dersi almıyorsunuz.");
+
+            // 7. KAYIT
+            return await RegisterAttendance(session.Id, studentId, model.DeviceId);
+        }
+        // ==================================================================================
+        // 3. ÖĞRENCİ: KONUM İLE KATILMA (ID İLE + METHOD CHECK)
+        // ==================================================================================
+        public async Task<JoinSessionResponseDto> JoinSessionByLocationAsync(JoinLocationDto model, int studentId)
+        {
+            var student = await _context.Users
+                .Include(u => u.Enrollments)
+                .FirstOrDefaultAsync(u => u.Id == studentId);
+            if (student == null) throw new Exception("Öğrenci bulunamadı.");
+
+            // 1. OTURUMU GETİR
+            var session = await _context.AttendanceSessions
+                .Include(s => s.RelatedCourses)
+                .FirstOrDefaultAsync(s => s.Id == model.SessionId);
+
+            if (session == null) throw new Exception("Seçilen oturum bulunamadı.");
+            if (!IsSessionValid(session)) throw new Exception("Bu oturum aktif değil.");
+
+            // 🔥 GÜVENLİK KİLİDİ: YÖNTEM KONTROLÜ 🔥
+            if (session.Method != AttendanceMethod.Location)
+            {
+                throw new Exception("Bu ders Konum yöntemiyle açılmamış! Lütfen QR Kod veya Yüz Tanıma deneyin.");
+            }
+
+            // 2. DERS KAYDI KONTROLÜ
+            var sessionCourseIds = session.RelatedCourses.Select(rc => rc.CourseId).ToList();
+            var studentCourseIds = student.Enrollments.Select(e => e.CourseId).ToList();
+
+            if (!sessionCourseIds.Intersect(studentCourseIds).Any())
+                throw new Exception("Bu derse kayıtlı değilsiniz.");
+
+            // 3. CİHAZ KONTROLÜ
+            if (session.RequireDeviceVerification)
+                await CheckDeviceUniquenessAsync(session.Id, model.DeviceId, studentId, true);
+
+            // 4. KONUM KONTROLÜ
+            if (session.RequireLocationVerification)
+            {
+                double dist = CalculateDistance(session.SnapshotLatitude ?? 0, session.SnapshotLongitude ?? 0, model.Latitude, model.Longitude);
+                double limit = session.SnapshotRadius ?? 50;
+
+                if (dist > limit)
+                    throw new Exception($"Sınıftan uzaktasınız! Mesafe: {dist:0.0}m (Sınır: {limit}m)");
+            }
+
+            // 5. KAYIT
+            return await RegisterAttendance(session.Id, studentId, model.DeviceId);
+        }
+        // ==================================================================================
+        // 4. ÖĞRENCİ: YÜZ TANIMA İLE KATILMA (ID İLE + METHOD CHECK)
+        // ==================================================================================
+        public async Task<JoinSessionResponseDto> JoinSessionByFaceAsync(JoinFaceDto model, int studentId)
+        {
+            var student = await _context.Users
+                .Include(u => u.Enrollments)
+                .FirstOrDefaultAsync(u => u.Id == studentId);
+            if (student == null) throw new Exception("Öğrenci bulunamadı.");
+
+            if (model.FaceImage == null || model.FaceImage.Length == 0)
+                throw new Exception("Lütfen yüzünüzün göründüğü bir fotoğraf yükleyin.");
+
+            // 1. OTURUMU GETİR
+            var session = await _context.AttendanceSessions
+                .Include(s => s.RelatedCourses)
+                .FirstOrDefaultAsync(s => s.Id == model.SessionId);
+
+            if (session == null) throw new Exception("Seçilen oturum bulunamadı.");
+            if (!IsSessionValid(session)) throw new Exception("Bu oturum aktif değil.");
+
+            // 🔥 GÜVENLİK KİLİDİ: YÖNTEM KONTROLÜ 🔥
+            if (session.Method != AttendanceMethod.FaceScan)
+            {
+                throw new Exception("Bu ders Yüz Tanıma yöntemiyle açılmamış! Lütfen QR Kod veya Konum deneyin.");
+            }
+
+            // 2. DERS KAYDI KONTROLÜ
+            var sessionCourseIds = session.RelatedCourses.Select(rc => rc.CourseId).ToList();
+            var studentCourseIds = student.Enrollments.Select(e => e.CourseId).ToList();
+
+            if (!sessionCourseIds.Intersect(studentCourseIds).Any())
+                throw new Exception("Bu derse kayıtlı değilsiniz.");
+
+            // 3. CİHAZ KONTROLÜ
+            if (session.RequireDeviceVerification)
+                await CheckDeviceUniquenessAsync(session.Id, model.DeviceId, studentId, true);
+
+            // 4. KONUM KONTROLÜ (Güvenlik için)
+            double dist = CalculateDistance(session.SnapshotLatitude ?? 0, session.SnapshotLongitude ?? 0, model.Latitude, model.Longitude);
+            double limit = session.SnapshotRadius ?? 50;
+
+            if (dist > limit)
+                throw new Exception($"Sınıftan uzaktasınız! Mesafe: {dist:0.0}m (Sınır: {limit}m)");
+
+            // 5. FOTOĞRAF KAYDETME
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+            var fileName = $"{studentId}_{session.Id}_{Guid.NewGuid()}.jpg";
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await model.FaceImage.CopyToAsync(stream);
+            }
+
+            // 6. MÜKERRER KAYIT KONTROLÜ
+            bool alreadyExists = await _context.AttendanceRecords
+                .AnyAsync(r => r.AttendanceSessionId == session.Id && r.StudentId == studentId);
+
+            if (alreadyExists)
+                return new JoinSessionResponseDto { IsSuccess = true, Message = "Zaten yoklamadasınız.", CourseName = "Mevcut" };
+
+            // 7. KAYIT OLUŞTURMA
+            var record = new AttendanceRecord
+            {
+                AttendanceSessionId = session.Id,
+                StudentId = studentId,
+                CheckInTime = DateTime.Now,
+                Status = SmartAttendance.Domain.Enums.AttendanceStatus.Present,
+                Description = "Yüz Tanıma ile Giriş",
+                IsDeviceVerified = true,
+                IsFaceVerified = true,
+                IsValid = true,
+                UsedDeviceId = model.DeviceId,
+                DistanceFromSessionCenter = 0,
+                FaceSnapshotUrl = "/uploads/" + fileName
+            };
+
+            _context.AttendanceRecords.Add(record);
+            await _context.SaveChangesAsync();
+
+            return new JoinSessionResponseDto
+            {
+                IsSuccess = true,
+                Message = "Yüz Doğrulama Başarılı!",
+                CourseName = "Ders Eşleşti"
+            };
+        }
         // ==================================================================================
         // 5. HOCA: OTURUM YÖNETİMİ
         // ==================================================================================
@@ -619,6 +819,64 @@ namespace SmartAttendance.Infrastructure.Services
 
             if (isUsedByAnother)
                 throw new Exception("Bu cihaz, bu derste başka bir öğrenci tarafından zaten kullanılmış! Lütfen kendi cihazınızı kullanın.");
+        }
+        // ==================================================================================
+        // ÖĞRENCİ: AKTİF DERSLERİ LİSTELEME (YÖNTEME GÖRE)
+        // ==================================================================================
+        public async Task<List<StudentActiveSessionDto>> GetStudentActiveSessionsByMethodAsync(int studentId, AttendanceMethod method)
+        {
+            // 1. Öğrenciyi ve aldığı dersleri bul
+            var student = await _context.Users
+                .Include(u => u.Enrollments)
+                .FirstOrDefaultAsync(u => u.Id == studentId);
+
+            if (student == null) throw new Exception("Öğrenci bulunamadı.");
+
+            // Öğrencinin aldığı derslerin ID listesi
+            var myCourseIds = student.Enrollments.Select(e => e.CourseId).ToList();
+
+            // 2. Sadece AKTİF olan ve İSTENEN YÖNTEMLE (QR/Loc/Face) açılmış oturumları çek
+            var activeSessions = await _context.AttendanceSessions
+                .Include(s => s.Instructor)
+                .Include(s => s.RelatedCourses).ThenInclude(rc => rc.Course)
+                .Where(s => s.IsActive && s.Method == method) // <--- Method Filtresi Burada
+                .ToListAsync();
+
+            var resultList = new List<StudentActiveSessionDto>();
+
+            foreach (var session in activeSessions)
+            {
+                // 3. Kesişim Kontrolü: Bu oturumdaki derslerden en az birini öğrenci alıyor mu?
+                var sessionCourseIds = session.RelatedCourses.Select(rc => rc.CourseId).ToList();
+
+                // Eğer öğrencinin aldığı dersler ile oturumun dersleri çakışıyorsa listeye ekle
+                if (sessionCourseIds.Intersect(myCourseIds).Any())
+                {
+                    // İsimleri birleştir (Birleştirilmiş sınıf olabilir: "CMPE428, CMPE500")
+                    string courseCodes = string.Join(", ", session.RelatedCourses.Select(rc => rc.Course.CourseCode));
+                    string courseNames = string.Join(", ", session.RelatedCourses.Select(rc => rc.Course.CourseName));
+
+                    // Kalan süreyi hesapla (Görsel amaçlı)
+                    int remainingMinutes = 0;
+                    if (session.EndTime.HasValue)
+                    {
+                        remainingMinutes = (int)(session.EndTime.Value - DateTime.Now).TotalMinutes;
+                        if (remainingMinutes < 0) remainingMinutes = 0;
+                    }
+
+                    resultList.Add(new StudentActiveSessionDto
+                    {
+                        SessionId = session.Id,
+                        CourseCode = courseCodes,
+                        CourseName = courseNames,
+                        InstructorName = session.Instructor.FullName,
+                        StartTime = session.StartTime,
+                        RemainingTimeMinutes = remainingMinutes
+                    });
+                }
+            }
+
+            return resultList;
         }
     }
 }

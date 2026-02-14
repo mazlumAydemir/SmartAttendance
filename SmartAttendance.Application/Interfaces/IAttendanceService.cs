@@ -1,5 +1,6 @@
 ﻿using SmartAttendance.Application.DTOs.Attendance;
 using SmartAttendance.Application.DTOs.Course;
+using SmartAttendance.Domain.Enums;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -25,7 +26,7 @@ namespace SmartAttendance.Application.Interfaces
         // ==================================================================================
 
         // 4. QR ile katılma
-        Task<JoinSessionResponseDto> JoinSessionAsync(JoinSessionDto model, int studentId);
+       Task<JoinSessionResponseDto> JoinSessionAsync(JoinSessionDto model, int studentId);
 
         // 5. Konum ile katılma
         Task<JoinSessionResponseDto> JoinSessionByLocationAsync(JoinLocationDto model, int studentId);
@@ -64,5 +65,8 @@ namespace SmartAttendance.Application.Interfaces
 
         // 14. Dersin Otomatik Yoklama Ayarlarını Güncelle
         Task<bool> UpdateCourseSettingsAsync(CourseSettingsDto model, int instructorId);
+        // Listeleme
+        // Öğrencinin aldığı ve şu an aktif olan oturumları yönteme göre listele
+        Task<List<StudentActiveSessionDto>> GetStudentActiveSessionsByMethodAsync(int studentId, AttendanceMethod method);
     }
 }

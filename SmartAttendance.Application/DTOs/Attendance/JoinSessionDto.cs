@@ -7,8 +7,10 @@ namespace SmartAttendance.Application.DTOs.Attendance
 {
     public class JoinSessionDto
     {
+        public int SessionId { get; set; }
         public string QrContent { get; set; } // İçinde Süre Bilgisi olan Dinamik QR
 
+       
         // Öğrencinin o anki konumu
         public double Latitude { get; set; }
         public double Longitude { get; set; }

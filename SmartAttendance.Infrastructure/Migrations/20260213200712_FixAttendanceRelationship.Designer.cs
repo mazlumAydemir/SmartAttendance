@@ -12,8 +12,8 @@ using SmartAttendance.Infrastructure.Persistence;
 namespace SmartAttendance.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartAttendanceDbContext))]
-    [Migration("20260203175912_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260213200712_FixAttendanceRelationship")]
+    partial class FixAttendanceRelationship
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

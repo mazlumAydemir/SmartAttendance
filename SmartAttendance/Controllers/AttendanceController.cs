@@ -39,7 +39,7 @@ namespace SmartAttendance.WebAPI.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-
+        
         // ÖĞRENCİ İÇİN (YENİ)
         [HttpPost("join-qr")]
         [Authorize(Roles = "Student")] // Sadece öğrenciler
@@ -89,7 +89,11 @@ namespace SmartAttendance.WebAPI.Controllers
             var result = await _attendanceService.JoinSessionByFaceAsync(model, userId);
             return Ok(result);
         }
+     
+     
 
+        // ÖĞRENCİ: SEÇTİĞİM DERSE KATIL (Adım 2)
+       
         // ... (StartSession altına ekleyebilirsin) ...
 
         // HOCA: AÇIK OTURUMLARIMI GETİR
@@ -234,6 +238,45 @@ namespace SmartAttendance.WebAPI.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        // ----------------------------------------------------------------------
+        // 1. ENDPOINT: Sadece KONUM ile açılan aktif dersleri getir
+        // ----------------------------------------------------------------------
+        [HttpGet("student/active-sessions/location")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetActiveLocationSessions()
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            // Method 2 = Location (Enum sırasına göre)
+            var result = await _attendanceService.GetStudentActiveSessionsByMethodAsync(userId, AttendanceMethod.Location);
+            return Ok(result);
+        }
+
+        // ----------------------------------------------------------------------
+        // 2. ENDPOINT: Sadece QR ile açılan aktif dersleri getir
+        // ----------------------------------------------------------------------
+        [HttpGet("student/active-sessions/qr")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetActiveQrSessions()
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            // Method 1 = QrCode
+            var result = await _attendanceService.GetStudentActiveSessionsByMethodAsync(userId, AttendanceMethod.QrCode);
+            return Ok(result);
+        }
+
+        // ----------------------------------------------------------------------
+        // 3. ENDPOINT: Sadece YÜZ TANIMA ile açılan aktif dersleri getir
+        // ----------------------------------------------------------------------
+        [HttpGet("student/active-sessions/face")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetActiveFaceSessions()
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            // Method 3 = FaceScan
+            var result = await _attendanceService.GetStudentActiveSessionsByMethodAsync(userId, AttendanceMethod.FaceScan);
+            return Ok(result);
         }
     }
 }
