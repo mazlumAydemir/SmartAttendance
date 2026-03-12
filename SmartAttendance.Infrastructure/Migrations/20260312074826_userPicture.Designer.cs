@@ -12,8 +12,8 @@ using SmartAttendance.Infrastructure.Persistence;
 namespace SmartAttendance.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartAttendanceDbContext))]
-    [Migration("20260213200712_FixAttendanceRelationship")]
-    partial class FixAttendanceRelationship
+    [Migration("20260312074826_userPicture")]
+    partial class userPicture
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -382,6 +382,9 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Property<string>("FaceEncoding")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("FcmToken")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -391,6 +394,9 @@ namespace SmartAttendance.Infrastructure.Migrations
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProfilePictureUrl")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Role")

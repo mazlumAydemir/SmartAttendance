@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SmartAttendance.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class FixAttendanceRelationship : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -41,6 +41,7 @@ namespace SmartAttendance.Infrastructure.Migrations
                     SchoolNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Role = table.Column<int>(type: "int", nullable: false),
                     FaceEncoding = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    FcmToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },

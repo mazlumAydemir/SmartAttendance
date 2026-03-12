@@ -68,5 +68,15 @@ namespace SmartAttendance.Application.Interfaces
         // Listeleme
         // Öğrencinin aldığı ve şu an aktif olan oturumları yönteme göre listele
         Task<List<StudentActiveSessionDto>> GetStudentActiveSessionsByMethodAsync(int studentId, AttendanceMethod method);
+        // Geçmiş (Kapanmış) Oturumları Listele
+        Task<List<PastSessionDto>> GetPastSessionsAsync(int instructorId);
+        Task<List<CourseStudentStatDto>> GetCourseStudentStatsAsync(int courseId);
+
+   
+        Task<CourseSettingsDto> GetCourseSettingsAsync(int courseId, int instructorId);
+
+        Task<List<CourseDto>> GetStudentCoursesAsync(int studentId);
+
+        Task<List<StudentAttendanceHistoryDto>> GetStudentCourseHistoryAsync(int studentId, int courseId);
     }
 }

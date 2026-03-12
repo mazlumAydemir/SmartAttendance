@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.SignalR; // BUNU EKLEMEYİ UNUTMA
+using SmartAttendance.Infrastructure.Hubs; // BUNU EKLEMEYİ UNUTMA
+using Microsoft.EntityFrameworkCore;
 using SmartAttendance.Application.DTOs.Attendance;
 using SmartAttendance.Application.DTOs.Course;
 using SmartAttendance.Application.Interfaces;
@@ -16,11 +18,22 @@ namespace SmartAttendance.Infrastructure.Services
     public class AttendanceService : IAttendanceService
     {
         private readonly SmartAttendanceDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public AttendanceService(SmartAttendanceDbContext context)
+        // 1. SIGNALR HUB BAĞLANTISI
+        private readonly IHubContext<AttendanceHub> _hubContext;
+
+        public AttendanceService(
+            SmartAttendanceDbContext context,
+            INotificationService notificationService,
+            IHubContext<AttendanceHub> hubContext) // CONSTRUCTOR'A EKLENDİ
         {
             _context = context;
+            _notificationService = notificationService;
+            _hubContext = hubContext;
         }
+
+        // ... (Diğer kısımlar aynı)
 
         // ==================================================================================
         // 1. HOCA: OTURUM BAŞLATMA (OTOMATİK SINIF KONUMU İLE)
@@ -40,12 +53,9 @@ namespace SmartAttendance.Infrastructure.Services
             TimeSpan timeNow = sessionTime.TimeOfDay;
 
             var schedule = await _context.CourseSchedules
-                .Include(s => s.ClassLocation)
-                .Where(s => model.CourseIds.Contains(s.CourseId)
-                            && s.DayOfWeek == today
-                            && timeNow >= s.StartTime
-                            && timeNow <= s.EndTime)
-                .FirstOrDefaultAsync();
+        .Include(s => s.ClassLocation)
+        .Where(s => model.CourseIds.Contains(s.CourseId))
+        .FirstOrDefaultAsync();
 
             double targetLat = 0;
             double targetLon = 0;
@@ -54,11 +64,6 @@ namespace SmartAttendance.Infrastructure.Services
             {
                 targetLat = schedule.ClassLocation.Latitude;
                 targetLon = schedule.ClassLocation.Longitude;
-            }
-            else
-            {
-                // Test aşamasında kolaylık olması için hata fırlatmıyoruz, 0,0 alıyoruz.
-                // Gerçek ortamda burası hata fırlatabilir.
             }
 
             string sessionCode = Guid.NewGuid().ToString();
@@ -90,6 +95,51 @@ namespace SmartAttendance.Infrastructure.Services
                 });
             }
             await _context.SaveChangesAsync();
+
+            // =========================================================================
+            // 🚀 FIREBASE BİLDİRİM GÖNDERME AŞAMASI (KİŞİSELLEŞTİRİLMİŞ DERS)
+            // =========================================================================
+            try
+            {
+                foreach (var courseId in model.CourseIds)
+                {
+                    var currentCourse = await _context.Courses.FindAsync(courseId);
+                    if (currentCourse == null) continue;
+
+                    var studentTokens = await _context.CourseEnrollments
+                        .Include(ce => ce.Student)
+                        .Where(ce => ce.CourseId == courseId && !string.IsNullOrEmpty(ce.Student.FcmToken))
+                        .Select(ce => ce.Student.FcmToken)
+                        .Distinct()
+                        .ToListAsync();
+
+                    if (studentTokens.Any())
+                    {
+                        string title = "Yeni Yoklama Başladı!";
+                        string body = $"{currentCourse.CourseCode} dersi için yoklama aktiftir. Lütfen sisteme girip katılımınızı onaylayın.";
+
+                        Console.WriteLine($"[BİLDİRİM TEST] {currentCourse.CourseCode} dersi için {studentTokens.Count} öğrenciye bildirim gönderiliyor...");
+                        await _notificationService.SendMulticastNotificationAsync(studentTokens, title, body);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[BİLDİRİM TEST] Bildirim aşamasında beklenmeyen HATA: {ex.Message}");
+            }
+
+            // =========================================================
+            // 🚀 SIGNALR CANLI BİLDİRİMİ: YOKLAMA BAŞLADI
+            // =========================================================
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("SessionStarted");
+                Console.WriteLine($"[SignalR] Yeni oturum başladı anonsu yapıldı.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SignalR Hatası] {ex.Message}");
+            }
 
             return new SessionResponseDto
             {
@@ -296,62 +346,109 @@ namespace SmartAttendance.Infrastructure.Services
         // ==================================================================================
         public async Task<JoinSessionResponseDto> JoinSessionAsync(JoinSessionDto model, int studentId)
         {
-            // 1. QR Kod Çözümleme
+            // --- 1. QR KOD FORMAT VE SÜRE KONTROLÜ ---
             var parts = model.QrContent.Split("||");
-            if (parts.Length != 2) throw new Exception("Geçersiz QR Kod formatı!");
+            if (parts.Length != 2)
+                throw new Exception("Geçersiz QR Kod formatı! Lütfen kodu tekrar okutun.");
 
-            string qrCodeInImage = parts[0];
-            if (!long.TryParse(parts[1], out long expirationTicks)) throw new Exception("QR Kod bozuk!");
+            string qrSessionCode = parts[0];
+            if (!long.TryParse(parts[1], out long expirationTicks))
+                throw new Exception("QR Kod verisi bozuk.");
 
-            if (DateTime.UtcNow > new DateTime(expirationTicks))
-                throw new Exception("QR Kodunun süresi dolmuş! Lütfen yenisini okutun.");
+            // DateTime.UtcNow kullanıyoruz, saati evrensel saate çevirip kontrol ediyoruz
+            if (DateTime.UtcNow.Ticks > expirationTicks)
+                throw new Exception("QR Kodun süresi dolmuş! Lütfen tahtadaki yeni kodu okutun.");
 
-            // 2. OTURUMU GETİR (ID İLE)
+            // --- 2. OTURUMU VE DERSİ BULMA ---
             var session = await _context.AttendanceSessions
                 .Include(s => s.RelatedCourses)
                 .FirstOrDefaultAsync(s => s.Id == model.SessionId);
 
-            if (session == null) throw new Exception("Seçilen oturum bulunamadı.");
-            if (!IsSessionValid(session)) throw new Exception("Bu oturum sonlandırılmış.");
+            if (session == null) throw new Exception("Oturum bulunamadı.");
+            if (!session.IsActive) throw new Exception("Bu yoklama oturumu hoca tarafından kapatılmış.");
 
-            // 🔥 GÜVENLİK KİLİDİ 1: YÖNTEM KONTROLÜ 🔥
-            if (session.Method != AttendanceMethod.QrCode)
+            // --- 3. QR KOD EŞLEŞMESİ (Güvenlik) ---
+            // Telefondan gelen kod ile veritabanındaki kod uyuşuyor mu?
+            if (session.SessionCode != qrSessionCode)
+                throw new Exception("Yanlış dersin QR kodunu okuttunuz! Kodlar eşleşmiyor.");
+
+            // --- 4. CİHAZ ID KONTROLÜ (Device Fingerprint) ---
+            // Eğer hoca cihaz kontrolünü açtıysa (Varsayılan: True)
+            if (session.RequireDeviceVerification)
             {
-                throw new Exception("Bu ders QR Kod yöntemiyle açılmamış! Lütfen hoca tarafından belirtilen yöntemi (Konum veya Yüz) kullanın.");
+                // Bu cihaz daha önce başka bir öğrenci adına kullanılmış mı?
+                var deviceUsedByOther = await _context.AttendanceRecords
+                    .AnyAsync(r => r.AttendanceSessionId == session.Id &&
+                                   r.UsedDeviceId == model.DeviceId &&
+                                   r.StudentId != studentId);
+
+                if (deviceUsedByOther)
+                    throw new Exception("Dikkat! Bu cihaz ile başka bir arkadaşınız yoklama vermiş. Kopya girişimi engellendi.");
             }
 
-            // 🔥 GÜVENLİK KİLİDİ 2: QR EŞLEŞMESİ 🔥
-            if (session.SessionCode != qrCodeInImage)
+            // --- 5. KONUM KONTROLÜ (GPS) ---
+            // Hoca konum zorunluluğu koyduysa
+            if (session.RequireLocationVerification)
             {
-                throw new Exception("Seçtiğiniz ders ile okuttuğunuz QR kod eşleşmiyor! Yanlış sınıfın kodunu okutuyor olabilirsiniz.");
+                // Koordinat kontrolü (0 gelirse hata ver)
+                if (model.Latitude == 0 || model.Longitude == 0)
+                    throw new Exception("Konum verisi alınamadı. Lütfen telefonunuzun GPS özelliğini açıp sayfayı yenileyin.");
+
+                // Mesafeyi Hesapla
+                double distance = CalculateDistance(
+                    session.SnapshotLatitude ?? 0,
+                    session.SnapshotLongitude ?? 0,
+                    model.Latitude,
+                    model.Longitude
+                );
+
+                // Hoca'nın belirlediği yarıçap (Varsayılan 50m)
+                double limit = session.SnapshotRadius ?? 50;
+
+                if (distance > limit)
+                {
+                    throw new Exception($"Sınıftan çok uzaktasınız! Tespit edilen mesafe: {distance:0.0} metre. (İzin verilen: {limit}m)");
+                }
             }
 
-            // 3. ÖĞRENCİ KONTROLÜ
+            // --- 6. DERS KAYDI KONTROLÜ ---
+            // Öğrenci bu dersi alıyor mu?
             var student = await _context.Users
                 .Include(u => u.Enrollments)
                 .FirstOrDefaultAsync(u => u.Id == studentId);
-            if (student == null) throw new Exception("Öğrenci bulunamadı.");
 
-            // 4. CİHAZ KONTROLÜ
-            await CheckDeviceUniquenessAsync(session.Id, model.DeviceId, studentId, session.RequireDeviceVerification);
-
-            // 5. KONUM KONTROLÜ (Hoca istediyse)
-            if (session.RequireLocationVerification)
-            {
-                double distance = CalculateDistance(session.SnapshotLatitude ?? 0, session.SnapshotLongitude ?? 0, model.Latitude, model.Longitude);
-                if (distance > (session.SnapshotRadius ?? 50))
-                    throw new Exception($"QR Kod doğru ama sınıftan uzaktasınız! Mesafe: {distance:0.0}m.");
-            }
-
-            // 6. DERS KAYDI KONTROLÜ
             var sessionCourseIds = session.RelatedCourses.Select(rc => rc.CourseId).ToList();
             var studentCourseIds = student.Enrollments.Select(e => e.CourseId).ToList();
 
             if (!sessionCourseIds.Intersect(studentCourseIds).Any())
-                throw new Exception("Bu oturuma ait dersi almıyorsunuz.");
+                throw new Exception("Bu dersi almıyorsunuz, yoklamaya katılamazsınız.");
 
-            // 7. KAYIT
-            return await RegisterAttendance(session.Id, studentId, model.DeviceId);
+            // --- 7. MÜKERRER KAYIT ---
+            bool alreadyJoined = await _context.AttendanceRecords
+                .AnyAsync(r => r.AttendanceSessionId == session.Id && r.StudentId == studentId);
+
+            if (alreadyJoined)
+                return new JoinSessionResponseDto { IsSuccess = true, Message = "Zaten yoklamadasınız." };
+
+            // --- 8. KAYIT ---
+            var record = new AttendanceRecord
+            {
+                AttendanceSessionId = session.Id,
+                StudentId = studentId,
+                CheckInTime = DateTime.Now,
+                Status = SmartAttendance.Domain.Enums.AttendanceStatus.Present,
+                
+                UsedDeviceId = model.DeviceId,
+                IsDeviceVerified = true,
+                DistanceFromSessionCenter = session.RequireLocationVerification
+                    ? CalculateDistance(session.SnapshotLatitude ?? 0, session.SnapshotLongitude ?? 0, model.Latitude, model.Longitude)
+                    : 0
+            };
+
+            _context.AttendanceRecords.Add(record);
+            await _context.SaveChangesAsync();
+
+            return new JoinSessionResponseDto { IsSuccess = true, Message = "Yoklamaya Başarıyla Katıldınız!" };
         }
         // ==================================================================================
         // 3. ÖĞRENCİ: KONUM İLE KATILMA (ID İLE + METHOD CHECK)
@@ -526,6 +623,20 @@ namespace SmartAttendance.Infrastructure.Services
             session.EndTime = DateTime.Now;
 
             await _context.SaveChangesAsync();
+
+            // =========================================================
+            // 🚀 SIGNALR CANLI BİLDİRİMİ: YOKLAMA BİTTİ
+            // =========================================================
+            try
+            {
+                await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("SessionEnded", sessionId);
+                await _hubContext.Clients.All.SendAsync("SessionEndedGlobal", sessionId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SignalR Hatası] {ex.Message}");
+            }
+
             return true;
         }
 
@@ -584,6 +695,23 @@ namespace SmartAttendance.Infrastructure.Services
             try
             {
                 await _context.SaveChangesAsync();
+
+                // =========================================================
+                // 🚀 SIGNALR CANLI BİLDİRİMİ: MANUEL GÜNCELLEME
+                // =========================================================
+                try
+                {
+                    await _hubContext.Clients.Group(model.SessionId.ToString()).SendAsync("StudentAttended", new
+                    {
+                        StudentId = model.StudentId,
+                        Status = model.Status.ToString()
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SignalR Hatası] {ex.Message}");
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -591,7 +719,6 @@ namespace SmartAttendance.Infrastructure.Services
                 throw new Exception($"Veritabanı hatası: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
-
         // ==================================================================================
         // 9. HOCA: BİR OTURUMDAKİ YOKLAMA LİSTESİNİ GÖR
         // ==================================================================================
@@ -776,6 +903,23 @@ namespace SmartAttendance.Infrastructure.Services
             _context.AttendanceRecords.Add(record);
             await _context.SaveChangesAsync();
 
+            // =========================================================
+            // 🚀 SIGNALR CANLI BİLDİRİMİ: ÖĞRENCİ KATILDI
+            // =========================================================
+            try
+            {
+                await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("StudentAttended", new
+                {
+                    StudentId = studentId,
+                    Status = "Present"
+                });
+                Console.WriteLine($"[SignalR] {studentId} ID'li öğrenci {sessionId} numaralı oturuma katıldı.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SignalR Hatası] {ex.Message}");
+            }
+
             return new JoinSessionResponseDto
             {
                 IsSuccess = true,
@@ -783,7 +927,6 @@ namespace SmartAttendance.Infrastructure.Services
                 CourseName = "Ders Eşleşti"
             };
         }
-
         private double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
         {
             var R = 6371e3;
@@ -821,7 +964,7 @@ namespace SmartAttendance.Infrastructure.Services
                 throw new Exception("Bu cihaz, bu derste başka bir öğrenci tarafından zaten kullanılmış! Lütfen kendi cihazınızı kullanın.");
         }
         // ==================================================================================
-        // ÖĞRENCİ: AKTİF DERSLERİ LİSTELEME (YÖNTEME GÖRE)
+        // ÖĞRENCİ: KATILMADIĞI AKTİF DERSLERİ LİSTELEME (GENEL METOT)
         // ==================================================================================
         public async Task<List<StudentActiveSessionDto>> GetStudentActiveSessionsByMethodAsync(int studentId, AttendanceMethod method)
         {
@@ -832,31 +975,39 @@ namespace SmartAttendance.Infrastructure.Services
 
             if (student == null) throw new Exception("Öğrenci bulunamadı.");
 
-            // Öğrencinin aldığı derslerin ID listesi
             var myCourseIds = student.Enrollments.Select(e => e.CourseId).ToList();
 
-            // 2. Sadece AKTİF olan ve İSTENEN YÖNTEMLE (QR/Loc/Face) açılmış oturumları çek
+            // 2. Sadece AKTİF olan ve İSTENEN YÖNTEMLE (QR / Location / Face) açılmış oturumları çek
             var activeSessions = await _context.AttendanceSessions
                 .Include(s => s.Instructor)
                 .Include(s => s.RelatedCourses).ThenInclude(rc => rc.Course)
-                .Where(s => s.IsActive && s.Method == method) // <--- Method Filtresi Burada
+                .Where(s => s.IsActive && s.Method == method) // <--- Method Filtresi Burada Dinamik
+                .ToListAsync();
+
+            // 3. FİLTRELEME: Öğrencinin ZATEN KATILDIĞI oturumları bul
+            var joinedSessionIds = await _context.AttendanceRecords
+                .Where(r => r.StudentId == studentId)
+                .Select(r => r.AttendanceSessionId)
                 .ToListAsync();
 
             var resultList = new List<StudentActiveSessionDto>();
 
             foreach (var session in activeSessions)
             {
-                // 3. Kesişim Kontrolü: Bu oturumdaki derslerden en az birini öğrenci alıyor mu?
+                // A) Eğer öğrenci bu oturuma zaten katıldıysa LİSTEYE EKLEME!
+                if (joinedSessionIds.Contains(session.Id))
+                {
+                    continue; // Atla
+                }
+
+                // B) Ders Kesişim Kontrolü: Öğrenci bu dersi alıyor mu?
                 var sessionCourseIds = session.RelatedCourses.Select(rc => rc.CourseId).ToList();
 
-                // Eğer öğrencinin aldığı dersler ile oturumun dersleri çakışıyorsa listeye ekle
                 if (sessionCourseIds.Intersect(myCourseIds).Any())
                 {
-                    // İsimleri birleştir (Birleştirilmiş sınıf olabilir: "CMPE428, CMPE500")
                     string courseCodes = string.Join(", ", session.RelatedCourses.Select(rc => rc.Course.CourseCode));
                     string courseNames = string.Join(", ", session.RelatedCourses.Select(rc => rc.Course.CourseName));
 
-                    // Kalan süreyi hesapla (Görsel amaçlı)
                     int remainingMinutes = 0;
                     if (session.EndTime.HasValue)
                     {
@@ -877,6 +1028,191 @@ namespace SmartAttendance.Infrastructure.Services
             }
 
             return resultList;
+        }
+        // ==================================================================================
+        // HOCA: GEÇMİŞ (KAPALI) OTURUMLARI LİSTELEME (GARANTİ SAYIM YÖNTEMİ)
+        // ==================================================================================
+        public async Task<List<PastSessionDto>> GetPastSessionsAsync(int instructorId)
+        {
+            // 1. Önce oturumları çek (Include AttendanceRecords KALDIRILDI, gerek yok)
+            var sessions = await _context.AttendanceSessions
+                .Include(s => s.RelatedCourses).ThenInclude(rc => rc.Course)
+                .Where(s => s.InstructorId == instructorId && !s.IsActive)
+                .OrderByDescending(s => s.StartTime)
+                .ToListAsync();
+
+            var result = new List<PastSessionDto>();
+
+            foreach (var s in sessions)
+            {
+                // 2. Bu oturum hangi derslere bağlı?
+                var courseIds = s.RelatedCourses.Select(rc => rc.CourseId).ToList();
+
+                // 3. TOPLAM ÖĞRENCİ SAYISI (Bu dersleri alan tekil öğrenci sayısı)
+                var totalStudents = await _context.CourseEnrollments
+                    .Where(ce => courseIds.Contains(ce.CourseId))
+                    .Select(ce => ce.StudentId)
+                    .Distinct()
+                    .CountAsync();
+
+                // 4. KATILAN SAYISI (DOĞRUDAN VERİTABANI SORGUSU İLE)
+                // Bu yöntem "Include" hatasına düşmez, veritabanından net sayıyı getirir.
+                var attendedCount = await _context.AttendanceRecords
+                    .Where(r => r.AttendanceSessionId == s.Id &&
+                                r.Status == SmartAttendance.Domain.Enums.AttendanceStatus.Present)
+                    .CountAsync();
+
+                result.Add(new PastSessionDto
+                {
+                    SessionId = s.Id,
+                    CourseNames = string.Join(", ", s.RelatedCourses.Select(rc => rc.Course.CourseCode)),
+                    Method = s.Method.ToString(),
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    AttendedCount = attendedCount,
+                    TotalStudents = totalStudents
+                });
+            }
+
+            return result;
+        }
+
+        // dersi alan tüm öğrencileri ve kaç derse geldiklerini hesaplar.
+
+        public async Task<List<CourseStudentStatDto>> GetCourseStudentStatsAsync(int courseId)
+        {
+            // 1. Bu derse ait bitmiş oturumları bul
+            var courseSessions = await _context.AttendanceSessions
+                .Include(s => s.RelatedCourses)
+                .Where(s => s.RelatedCourses.Any(rc => rc.CourseId == courseId) && !s.IsActive)
+                .Select(s => s.Id)
+                .ToListAsync();
+
+            int totalSessionsCount = courseSessions.Count;
+
+            // 2. Dersi alan öğrencileri bul
+            var enrolledStudents = await _context.CourseEnrollments
+                .Include(e => e.Student)
+                .Where(e => e.CourseId == courseId)
+                .Select(e => new { e.Student.Id, e.Student.FullName, e.Student.SchoolNumber })
+                .ToListAsync();
+
+            var stats = new List<CourseStudentStatDto>();
+
+            foreach (var student in enrolledStudents)
+            {
+                // 3. Öğrencinin bu dersin oturumlarından kaçına geldiğini say
+                int attendedCount = await _context.AttendanceRecords
+                    .CountAsync(r => r.StudentId == student.Id &&
+                                     courseSessions.Contains(r.AttendanceSessionId) &&
+                                     r.Status == AttendanceStatus.Present);
+
+                stats.Add(new CourseStudentStatDto
+                {
+                    StudentId = student.Id,
+                    StudentName = student.FullName,
+                    SchoolNumber = student.SchoolNumber,
+                    TotalSessions = totalSessionsCount,
+                    AttendedSessions = attendedCount
+                });
+            }
+
+            return stats.OrderBy(s => s.StudentName).ToList();
+        }
+
+        // ==================================================================================
+        // 15. HOCA: DERSİN AYARLARINI GETİR (GET)
+        // ==================================================================================
+        public async Task<CourseSettingsDto> GetCourseSettingsAsync(int courseId, int instructorId)
+        {
+            var course = await _context.Courses
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (course == null) throw new Exception("Ders bulunamadı.");
+
+            // Güvenlik: Sadece dersin hocası ayarları görebilir
+            if (course.InstructorId != instructorId)
+                throw new Exception("Bu dersin ayarlarını görüntüleme yetkiniz yok.");
+
+            return new CourseSettingsDto
+            {
+                CourseId = course.Id,
+                IsAutoAttendanceEnabled = course.IsAutoAttendanceEnabled,
+                DefaultMethod = course.DefaultMethod,
+                DefaultDurationMinutes = course.DefaultDurationMinutes,
+                DefaultRadiusMeters = course.DefaultRadiusMeters
+            };
+        }
+
+        // ==================================================================================
+        // 16. ÖĞRENCİ: ALDIĞI DERSLERİ LİSTELE
+        // ==================================================================================
+        public async Task<List<CourseDto>> GetStudentCoursesAsync(int studentId)
+        {
+            var courses = await _context.CourseEnrollments
+                .Include(ce => ce.Course)
+                .ThenInclude(c => c.Instructor)
+                .Where(ce => ce.StudentId == studentId)
+                .Select(ce => new CourseDto
+                {
+                    Id = ce.Course.Id,
+                    CourseCode = ce.Course.CourseCode,
+                    CourseName = ce.Course.CourseName,
+
+                    // --- DÜZELTME BURADA ---
+                    // Nesnenin tamamını değil, Ad ve Soyadı birleştirip string olarak veriyoruz.
+                    InstructorName = ce.Course.Instructor.FullName 
+                })
+                .ToListAsync();
+
+            return courses;
+        }
+
+        // ==================================================================================
+        // 17. ÖĞRENCİ: BİR DERSİN YOKLAMA GEÇMİŞİNİ GETİR
+        // ==================================================================================
+        public async Task<List<StudentAttendanceHistoryDto>> GetStudentCourseHistoryAsync(int studentId, int courseId)
+        {
+            // 1. Bu derse ait BITMIŞ (IsActive=false) oturumları bul
+            var sessions = await _context.AttendanceSessions
+                .Include(s => s.RelatedCourses)
+                .Where(s => s.RelatedCourses.Any(rc => rc.CourseId == courseId) && !s.IsActive)
+                .OrderByDescending(s => s.StartTime)
+                .ToListAsync();
+
+            // 2. Öğrencinin bu ders kapsamındaki tüm kayıtlarını çek
+            // (Tek tek db'ye gitmemek için hepsini hafızaya alıyoruz)
+            var studentRecords = await _context.AttendanceRecords
+                .Where(r => r.StudentId == studentId)
+                .ToListAsync();
+
+            var history = new List<StudentAttendanceHistoryDto>();
+
+            foreach (var session in sessions)
+            {
+                // Bu oturumda öğrencinin kaydı var mı?
+                var record = studentRecords.FirstOrDefault(r => r.AttendanceSessionId == session.Id);
+
+                string status = "Absent"; // Varsayılan: Yok
+                string description = "-";
+
+                if (record != null)
+                {
+                    status = record.Status.ToString(); // Present, Excused, Absent
+                    description = record.Description;
+                }
+
+                history.Add(new StudentAttendanceHistoryDto
+                {
+                    SessionId = session.Id,
+                    StartTime = session.StartTime,
+                    Method = session.Method.ToString(),
+                    Status = status,
+                    Description = description
+                });
+            }
+
+            return history;
         }
     }
 }

@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SmartAttendance.Application.DTOs.Auth;
 using SmartAttendance.Application.Interfaces;
 using SmartAttendance.Infrastructure.Services;
+using System.Security.Claims;
 
 namespace SmartAttendance.WebAPI.Controllers
 {
@@ -27,6 +30,38 @@ namespace SmartAttendance.WebAPI.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("update-fcm-token")]
+        [Authorize]
+        public async Task<IActionResult> UpdateFcmToken([FromBody] FcmTokenDto request)
+        {
+            // 1. Token'dan User ID'yi al
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+
+            // 2. Service katmanına işi devret
+            var success = await _authService.UpdateFcmTokenAsync(int.Parse(userIdClaim), request.Token);
+
+            // 3. Sonuca göre cevap dön
+            if (!success) return NotFound(new { message = "Kullanıcı bulunamadı." });
+
+            return Ok(new { message = "FCM Token başarıyla kaydedildi." });
+        }
+
+        [Authorize] // En azından bir token gerektirir
+        [HttpGet("all-users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            try
+            {
+                var users = await _authService.GetAllUsersAsync();
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Liste alınırken bir hata oluştu: " + ex.Message });
             }
         }
     }

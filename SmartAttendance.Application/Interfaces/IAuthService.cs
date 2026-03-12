@@ -14,5 +14,8 @@ namespace SmartAttendance.Application.Interfaces
 
         // Eğer burada "Task<string> RegisterAsync..." varsa SİL.
         // Çünkü AuthService.cs içinde bu metodu iptal ettik/sildik.
+
+        Task<bool> UpdateFcmTokenAsync(int userId, string token);
+        Task<List<UserDto>> GetAllUsersAsync();
     }
 }

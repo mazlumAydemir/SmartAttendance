@@ -83,5 +83,33 @@ namespace SmartAttendance.Infrastructure.Services
                 UserId = user.Id
             };
         }
+
+        public async Task<bool> UpdateFcmTokenAsync(int userId, string token)
+        {
+            // Veritabanından kullanıcıyı bul
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null) return false;
+
+            // Token'ı güncelle ve kaydet
+            user.FcmToken = token;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+        public async Task<List<UserDto>> GetAllUsersAsync()
+        {
+            return await _context.Users
+                .Select(u => new UserDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName, //
+                    Email = u.Email, //
+                    SchoolNumber = u.SchoolNumber, //
+                    Role = u.Role.ToString(), //
+                    FcmToken = u.FcmToken //
+                })
+                .ToListAsync();
+        }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +16,9 @@ namespace SmartAttendance.Domain.Entities
         public string Email { get; set; }
         public string PasswordHash { get; set; }
         public string? SchoolNumber { get; set; }
-
+        // --- ÖĞRENCİ PROFİL FOTOĞRAFI ---
+        // Öğrencinin sisteme yüklediği ve yüz tanımanın bakacağı referans fotoğraf
+        public string? ProfilePictureUrl { get; set; }
         public UserRole Role { get; set; }
 
         // Güvenlik
@@ -26,5 +29,8 @@ namespace SmartAttendance.Domain.Entities
         public ICollection<CourseEnrollment> Enrollments { get; set; }
         public ICollection<Course> GivenCourses { get; set; } // Hoca ise verdiği dersler
         public ICollection<StudentExcuse> Excuses { get; set; }
+
+        // User.cs içine ekle:
+        public string? FcmToken { get; set; } // Soru işareti (?) boş olabileceğini belirtir
     }
 }

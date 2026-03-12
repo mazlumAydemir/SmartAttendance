@@ -13,6 +13,6 @@ namespace SmartAttendance.Domain.Entities
         public string RoomName { get; set; } // Örn: CMPE128
         public double Latitude { get; set; }
         public double Longitude { get; set; }
-        public int FixedRadiusMeters { get; set; } = 30;
+        public int FixedRadiusMeters { get; set; } = 50;
     }
 }

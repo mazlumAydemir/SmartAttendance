@@ -49,6 +49,7 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
         }
 
         // --- GÖREV 1: OTOMATİK BAŞLATMA ---
+        // --- GÖREV 1: OTOMATİK BAŞLATMA ---
         private async Task CheckAndStartSessions(SmartAttendanceDbContext context)
         {
             var now = DateTime.Now;
@@ -61,24 +62,24 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                 .Include(s => s.ClassLocation)
                 .Where(s => s.DayOfWeek == today
                             && s.Course.IsAutoAttendanceEnabled == true
-                            // Şu anki saat, dersin başlangıcı ile bitişi arasında mı?
                             && currentTime >= s.StartTime
                             && currentTime <= s.EndTime)
                 .ToListAsync();
 
             foreach (var schedule in activeSchedules)
             {
-                // Bugün bu ders için zaten oturum açılmış mı? (Mükerrer kontrolü)
+                // DÜZELTME: Günde 1 kuralı yerine "Şu an zaten açık bir oturumu var mı?" kontrolü yapıyoruz.
+                // Eğer son 50 dakika içinde bu derse ait bir oturum açıldıysa veya hala aktifse yenisini açma.
                 bool sessionExists = await context.AttendanceSessions
                     .Include(s => s.RelatedCourses)
                     .AnyAsync(s => s.RelatedCourses.Any(rc => rc.CourseId == schedule.CourseId)
-                                   && s.StartTime.Date == now.Date);
+                                   && (s.IsActive == true || s.StartTime >= now.AddMinutes(-50)));
 
-                if (sessionExists) continue;
+                if (sessionExists) continue; // Zaten varsa atla
 
                 // Yoksa BAŞLAT
                 var settings = schedule.Course;
-                string sessionCode = Guid.NewGuid().ToString();
+                string sessionCode = Guid.NewGuid().ToString().Substring(0, 8).ToUpper(); // Ekrana daha güzel sığması için kısa kod yaptık
 
                 var newSession = new AttendanceSession
                 {
@@ -86,11 +87,7 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                     InstructorId = settings.InstructorId,
                     StartTime = DateTime.Now,
                     IsActive = true,
-
-                    // Bitiş Süresini Hesapla (Şu an + Hoca'nın seçtiği dakika)
-                    // Örn: Hoca 15dk dediyse, EndTime = Şu an + 15dk olur.
                     EndTime = DateTime.Now.AddMinutes(settings.DefaultDurationMinutes),
-
                     Method = settings.DefaultMethod,
                     RequireFaceVerification = (settings.DefaultMethod == AttendanceMethod.FaceScan),
                     RequireDeviceVerification = true,
