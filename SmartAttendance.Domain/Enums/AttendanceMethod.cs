@@ -10,6 +10,6 @@ namespace SmartAttendance.Domain.Enums
     {
         QrCode = 1,
         Location = 2,
-        FaceScan = 3
+        CrowdScan = 3  // FaceScan yerine CrowdScan yazıyoruz
     }
 }

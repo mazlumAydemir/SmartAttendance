@@ -89,7 +89,7 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                     IsActive = true,
                     EndTime = DateTime.Now.AddMinutes(settings.DefaultDurationMinutes),
                     Method = settings.DefaultMethod,
-                    RequireFaceVerification = (settings.DefaultMethod == AttendanceMethod.FaceScan),
+                    RequireFaceVerification = (settings.DefaultMethod == AttendanceMethod.CrowdScan),
                     RequireDeviceVerification = true,
                     RequireLocationVerification = true,
                     SnapshotLatitude = schedule.ClassLocation?.Latitude ?? 0,

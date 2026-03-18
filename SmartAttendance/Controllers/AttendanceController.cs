@@ -107,28 +107,7 @@ namespace SmartAttendance.WebAPI.Controllers
             }
         }
 
-        // ======================================================================
-        // ÖĞRENCİ: YÜZ TANIMA İLE KATIL (KENDİ TELEFONUNDAN)
-        // ======================================================================
-        [HttpPost("join-face")]
-        [Authorize(Roles = "Student")]
-        public async Task<IActionResult> JoinSessionByFace([FromForm] JoinFaceDto model)
-        {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
-
-            int studentId = int.Parse(userIdString);
-            try
-            {
-                var result = await _attendanceService.JoinSessionByFaceAsync(model, studentId);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
+     
         // ======================================================================
         // HOCA: AÇIK OTURUMLARIMI GETİR
         // ======================================================================
@@ -319,17 +298,6 @@ namespace SmartAttendance.WebAPI.Controllers
             return Ok(result);
         }
 
-        // ======================================================================
-        // ÖĞRENCİ: KATILMADIĞI AKTİF DERSLER (YÜZ)
-        // ======================================================================
-        [HttpGet("student/active-sessions/face")]
-        [Authorize(Roles = "Student")]
-        public async Task<IActionResult> GetActiveFaceSessions()
-        {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var result = await _attendanceService.GetStudentActiveSessionsByMethodAsync(userId, AttendanceMethod.FaceScan);
-            return Ok(result);
-        }
 
         // ======================================================================
         // HOCA: GEÇMİŞ YOKLAMALARI LİSTELE

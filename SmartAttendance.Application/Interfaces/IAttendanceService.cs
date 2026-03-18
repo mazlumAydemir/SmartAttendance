@@ -31,8 +31,7 @@ namespace SmartAttendance.Application.Interfaces
         // 5. Konum ile katılma
         Task<JoinSessionResponseDto> JoinSessionByLocationAsync(JoinLocationDto model, int studentId);
 
-        // 6. Yüz ile katılma
-        Task<JoinSessionResponseDto> JoinSessionByFaceAsync(JoinFaceDto model, int studentId);
+       
 
         // ==================================================================================
         // HOCA: LİSTELEME VE YÖNETİM METOTLARI

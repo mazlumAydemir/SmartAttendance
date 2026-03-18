@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "smartattendancenotifications",
+  "private_key_id": "23fd7da60a2cf44da2d5b132b0617e5d2eb45747",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCycQfBdy0LNAPB\ndr5qElO9rKZBrrAw/LHNDl+ZsMvtv82yiCQ0L94loCPpB0XrxKmqYIOwMaeD58wK\naW2j59+4SMu5VuwLjLQFMNn5tu/gSdU1SEiM8rbavudlRjBhBg54IDXeucCkzm2L\nQx9slpimhMwvewWtEjJUclqnt/beN60ntPcx/K3GZ7NUJbftUYpZBho+6yeN3gD0\n18Ry7vWKhKjqQbxyhcSh5EZ2gWSxLY2F6dfwT9PaS3WTzFxkxVrk9ohoFHWld0P0\n8rN+fhjIcq/UD1+UVUfbvGViw1tbdWN+7QAOkAKNR0kf3ZaqIdZzq0OrZ7TE5q8f\nP3BGCEq1AgMBAAECggEADdun+D2K34BdVee+N2gPkQvFm653G4IJRiOtumnLF9gN\nOXMuQ8+yraX6s/nIudwIazJBd+xBr+vo4kDrojUuhqLZdrewvEYXCWiQvSTlpNV6\nSL/03N43fW4iQJck+081NEOxu1SEvA5JRQcw+3kH1Bxv7E4Rekf1mOGKqqGnlMlW\nVAsv+i/7DOV5RjqFyOWAqSMSYRnXTDLDPS1QgnT6xqKSjTRGd/chEksyZLTspoOx\nlQZwroK3hIpqobJC7sktpPjRmT2YXABl+3gD7glgKoyppjqu83qNB5jrb7KSHzJF\n9BFdQPpt0q5tBNMRXwscOORSvm7z8lMMWDvwq1GrXwKBgQDePK0MmZdiW/1Jd4J6\nWoZ4WJNyNqsOu43v2F682bD0Yc3hjUVnQ2cZpWNjEYU+by69pgfShW8tSb8EKDcG\nX3V0WzWbdL8lGg8dRy7gQZwEpj6CgNGgKOFqbXmXeKJSdFM3XXwpyd/ZHonAxZVZ\nHwb46IndigUEJ7mEx8juporInwKBgQDNjQs+ur20twm1KtsPaMUq4xUcqe+ry1qD\nBLHC1o47kF634f3QGCtJJrW3byOgDTc/BC59BIrAOT7HooOGLvP3BzaCBldPutrQ\nww+jjZNMGoRSR31yGBGsZzTs7/K4P0fHBnXQu8I2r3xv+IoXHtSBd+33wR74Wss4\n6ezpcchoKwKBgHr3C7EbEt5Dk+Qgkjts91aDfCIICaH/OMvq5pCLyxONQkN4zVwT\nuWpBTrq0KQugrTYWNeHQHvHqCh0cu0V1cCHPjdvUPyciQharGk7PPqp76b5/1H1P\n4Vnn9Q1QnFAPOTQ7L8ZXgto5wXK+YKKNPmhfEllYUuo3qLjFanJSCBx1AoGBAMl+\nEF7eiaYDozV/nBtf1Z8z2PcvMi0Se1hhmqtmzShgXikdFEQP3SapFoqJHMABFH3m\naHfOowDJXNwvV4SKtEYcQPd2pdIXVfY8sDDgUFrSx5EsWTElnPWGeiAlGqY4CfF0\nSLtjwn7+yRmt5hfB9ggv+wrZubU0s2/IB5/TFOPfAoGBAI2IlGOtH1KnaMWM9t2/\nrWTkLIgyKXj8usn1OmAw851j99qbcK4b5Lb9LlcAgoHyk/s1VENXpMsdB+6zOL2O\nlY3TclMSQGyW2sQu2Umiry6edAflippoMhCHxqt9njPz0128gAQh8gSAByqNHbsC\nghrmod++7QIRjoj3eAzysJ6r\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@smartattendancenotifications.iam.gserviceaccount.com",
+  "client_id": "100113691666254690326",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40smartattendancenotifications.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

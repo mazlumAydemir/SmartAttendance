@@ -23,15 +23,18 @@ builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins",
-        policy =>
-        {
-            // Lokal React adresin (genelde 5173 veya 3000 olur)
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        });
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder.WithOrigins(
+                "http://localhost:5173",
+                "http://172.29.84.73:5173",
+                "https://senin-siten.vercel.app",
+                "https://delaine-ungrooved-yosef.ngrok-free.dev" // <--- NGROK LÝNKÝN BURADA
+               )
+               .AllowAnyMethod()
+               .AllowAnyHeader()
+               .AllowCredentials();
+    });
 });
 
 // --- 2. YEREL VERÝTABANI BAÐLANTISI ---
@@ -106,7 +109,8 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseCors("AllowSpecificOrigins");
+// ÝÞTE BURASI DÜZELTÝLDÝ! Yukarýdaki "AllowAll" ismiyle ayný oldu.
+app.UseCors("AllowAll");
 
 // Yerel testlerde sorun yaþamamak için HTTPS yönlendirmesini opsiyonel yapabilirsin
 // app.UseHttpsRedirection(); 
@@ -127,7 +131,7 @@ using (var scope = app.Services.CreateScope())
     context.Database.Migrate();
 
     // DataSeeder sýnýfýndaki baþlangýç verilerini ekler
-    await DataSeeder.SeedAsync(context);
+    await DataSeeder.SeedAsync(context); // Not: Eðer DataSeeder kullanmýyorsan bu satýrý yoruma alabilirsin.
 }
 
 app.Run();
