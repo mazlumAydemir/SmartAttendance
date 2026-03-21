@@ -48,7 +48,7 @@ builder.Services.AddScoped<IAttendanceService, SmartAttendance.Infrastructure.Se
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddHostedService<AutoAttendanceWorker>();
 builder.Services.AddScoped<IFaceRecognitionService, FaceRecognitionService>(); // Yapay Zeka Servisimiz
-
+builder.Services.AddScoped<IAdminService, AdminService>();
 // --- 4. JWT AYARLARI ---
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
@@ -102,6 +102,24 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// ==========================================================
+// --- YENÝ EKLENECEK FIREBASE BAÞLATMA KODU ---
+// ==========================================================
+var firebaseKeyPath = Path.Combine(Directory.GetCurrentDirectory(), "firebase-key.json");
+if (System.IO.File.Exists(firebaseKeyPath) && FirebaseApp.DefaultInstance == null)
+{
+    FirebaseApp.Create(new AppOptions()
+    {
+        Credential = GoogleCredential.FromFile(firebaseKeyPath)
+    });
+    Console.WriteLine("Firebase baþarýyla baþlatýldý!");
+}
+else if (!System.IO.File.Exists(firebaseKeyPath))
+{
+    Console.WriteLine("DÝKKAT: firebase-key.json dosyasý bulunamadý! Bildirimler çalýþmayacak.");
+}
+// ==========================================================
+
 var app = builder.Build();
 
 // --- 6. PIPELINE AYARLARI ---
@@ -116,6 +134,9 @@ app.UseCors("AllowAll");
 // app.UseHttpsRedirection(); 
 
 app.UseAuthentication();
+
+// BU SATIRI EKLÝYORUZ: Sunucudaki resimlerin dýþarýdan okunabilmesini saðlar
+app.UseStaticFiles();
 app.UseAuthorization();
 
 app.MapHub<AttendanceHub>("/attendanceHub");

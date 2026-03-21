@@ -13,13 +13,17 @@ namespace SmartAttendance.Domain.Entities
         public User Instructor { get; set; }
 
         // ==========================================================
-        // --- EKSİK OLAN KISIMLAR (BUNLARI EKLEMEN LAZIM) ---
+        // --- YENİ EKLENEN ALANLAR ---
         // ==========================================================
-        public bool IsAutoAttendanceEnabled { get; set; } = false; // Otomatik başlatma açık mı?
-        public AttendanceMethod DefaultMethod { get; set; } = AttendanceMethod.QrCode; // Varsayılan Yöntem
-        public int DefaultDurationMinutes { get; set; } = 15; // Kaç dakika açık kalacak?
-        public int DefaultRadiusMeters { get; set; } = 100; // Konum ise yarıçap ne?
+        // Bu ders hangi bölümün dersi? (Örn: Bilgisayar Mühendisliği dersi)
+        public int? DepartmentId { get; set; }
+        public Department? Department { get; set; }
         // ==========================================================
+
+        public bool IsAutoAttendanceEnabled { get; set; } = false;
+        public AttendanceMethod DefaultMethod { get; set; } = AttendanceMethod.QrCode;
+        public int DefaultDurationMinutes { get; set; } = 15;
+        public int DefaultRadiusMeters { get; set; } = 100;
 
         public ICollection<CourseEnrollment> Enrollments { get; set; }
         public ICollection<CourseSchedule> Schedules { get; set; }

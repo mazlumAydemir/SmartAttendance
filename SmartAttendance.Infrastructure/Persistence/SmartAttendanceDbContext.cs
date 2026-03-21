@@ -27,7 +27,8 @@ namespace SmartAttendance.Infrastructure.Persistence
         public DbSet<SessionCourseLink> SessionCourseLinks { get; set; }
         public DbSet<AttendanceRecord> AttendanceRecords { get; set; }
         public DbSet<StudentExcuse> StudentExcuses { get; set; }
-
+        public DbSet<Faculty> Faculties { get; set; }
+        public DbSet<Department> Departments { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // 1. CourseEnrollment (Öğrenci - Ders)
