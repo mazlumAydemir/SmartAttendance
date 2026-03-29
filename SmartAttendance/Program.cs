@@ -143,6 +143,7 @@ app.MapHub<AttendanceHub>("/attendanceHub");
 app.MapControllers();
 
 // --- 7. OTOMATÝK SEED (Lokal DB'yi doldurmak için) ---
+
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;

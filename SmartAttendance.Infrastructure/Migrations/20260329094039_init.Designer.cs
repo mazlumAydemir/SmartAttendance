@@ -12,8 +12,8 @@ using SmartAttendance.Infrastructure.Persistence;
 namespace SmartAttendance.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartAttendanceDbContext))]
-    [Migration("20260312074826_userPicture")]
-    partial class userPicture
+    [Migration("20260329094039_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -204,6 +204,9 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Property<int>("DefaultRadiusMeters")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
                     b.Property<int>("InstructorId")
                         .HasColumnType("int");
 
@@ -214,6 +217,8 @@ namespace SmartAttendance.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
 
                     b.HasIndex("InstructorId");
 
@@ -285,6 +290,57 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.HasIndex("CourseId");
 
                     b.ToTable("CourseSchedules");
+                });
+
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.Department", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FacultyId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacultyId");
+
+                    b.ToTable("Departments");
+                });
+
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.Faculty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Faculties");
                 });
 
             modelBuilder.Entity("SmartAttendance.Domain.Entities.SessionCourseLink", b =>
@@ -375,6 +431,9 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -388,6 +447,9 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -406,6 +468,8 @@ namespace SmartAttendance.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
 
                     b.ToTable("Users");
                 });
@@ -446,11 +510,17 @@ namespace SmartAttendance.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartAttendance.Domain.Entities.Course", b =>
                 {
+                    b.HasOne("SmartAttendance.Domain.Entities.Department", "Department")
+                        .WithMany("Courses")
+                        .HasForeignKey("DepartmentId");
+
                     b.HasOne("SmartAttendance.Domain.Entities.User", "Instructor")
                         .WithMany("GivenCourses")
                         .HasForeignKey("InstructorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Department");
 
                     b.Navigation("Instructor");
                 });
@@ -493,6 +563,17 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Navigation("Course");
                 });
 
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.Department", b =>
+                {
+                    b.HasOne("SmartAttendance.Domain.Entities.Faculty", "Faculty")
+                        .WithMany("Departments")
+                        .HasForeignKey("FacultyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Faculty");
+                });
+
             modelBuilder.Entity("SmartAttendance.Domain.Entities.SessionCourseLink", b =>
                 {
                     b.HasOne("SmartAttendance.Domain.Entities.AttendanceSession", "AttendanceSession")
@@ -529,6 +610,15 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.User", b =>
+                {
+                    b.HasOne("SmartAttendance.Domain.Entities.Department", "Department")
+                        .WithMany("Users")
+                        .HasForeignKey("DepartmentId");
+
+                    b.Navigation("Department");
+                });
+
             modelBuilder.Entity("SmartAttendance.Domain.Entities.AttendanceSession", b =>
                 {
                     b.Navigation("AttendanceRecords");
@@ -541,6 +631,18 @@ namespace SmartAttendance.Infrastructure.Migrations
                     b.Navigation("Enrollments");
 
                     b.Navigation("Schedules");
+                });
+
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.Department", b =>
+                {
+                    b.Navigation("Courses");
+
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("SmartAttendance.Domain.Entities.Faculty", b =>
+                {
+                    b.Navigation("Departments");
                 });
 
             modelBuilder.Entity("SmartAttendance.Domain.Entities.User", b =>

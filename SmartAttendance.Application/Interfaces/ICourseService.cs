@@ -15,5 +15,6 @@ namespace SmartAttendance.Application.Interfaces
 
         // Hocanın verdiği derslere göre programını getirir
         Task<List<TimetableItemDto>> GetInstructorTimetableAsync(int instructorId);
+       
     }
 }
