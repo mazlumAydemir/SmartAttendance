@@ -28,7 +28,7 @@ builder.Services.AddCors(options =>
         builder.WithOrigins(
                 "http://localhost:5173",
                 "http://172.29.84.73:5173",
-                "https://senin-siten.vercel.app",
+                "https://smart-attendance-frontend-nine.vercel.app",
                 "https://delaine-ungrooved-yosef.ngrok-free.dev" // <--- NGROK LÝNKÝN BURADA
                )
                .AllowAnyMethod()
@@ -47,7 +47,7 @@ builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IAttendanceService, SmartAttendance.Infrastructure.Services.AttendanceService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddHostedService<AutoAttendanceWorker>();
-builder.Services.AddScoped<IFaceRecognitionService, FaceRecognitionService>(); // Yapay Zeka Servisimiz
+builder.Services.AddSingleton<IFaceRecognitionService, FaceRecognitionService>(); // Yapay Zeka Servisimiz
 builder.Services.AddScoped<IAdminService, AdminService>();
 // --- 4. JWT AYARLARI ---
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -153,7 +153,7 @@ using (var scope = app.Services.CreateScope())
     context.Database.Migrate();
 
     // DataSeeder sýnýfýndaki baþlangýç verilerini ekler
-    await DataSeeder.SeedAsync(context); // Not: Eðer DataSeeder kullanmýyorsan bu satýrý yoruma alabilirsin.
+   // await DataSeeder.SeedAsync(context); // Not: Eðer DataSeeder kullanmýyorsan bu satýrý yoruma alabilirsin.
 }
 
 app.Run();
