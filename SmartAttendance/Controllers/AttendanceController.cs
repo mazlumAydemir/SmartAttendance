@@ -380,6 +380,7 @@ namespace SmartAttendance.WebAPI.Controllers
                     return Ok(new { recognizedNames = new List<string>() });
 
                 var recognizedNames = new List<string>();
+                var newAttendanceIds = new List<int>(); // 🔥 Sinyal göndermek için yeni eklenenlerin ID'lerini tutalım
 
                 // 2. Tanınan Öğrencileri Yoklamada "VAR" olarak işaretle
                 foreach (var studentId in recognizedIds)
@@ -407,16 +408,30 @@ namespace SmartAttendance.WebAPI.Controllers
                             };
 
                             _context.AttendanceRecords.Add(newRecord);
+
                             recognizedNames.Add(student.FullName);
+                            newAttendanceIds.Add(studentId); // ID'yi listeye ekle
                         }
                     }
                 }
 
+                // Önce veritabanına kaydedelim
                 await _context.SaveChangesAsync();
 
-                // 3. React tarafına Canlı Bildirim (SignalR) Gönder ki hoca ekranında görsün
-                if (recognizedNames.Any())
+                // 3. 🔥 React tarafına Canlı Bildirim (SignalR) Gönder
+                if (newAttendanceIds.Any())
                 {
+                    // Öğrenci listesi sayfasındaki (Raporlar) yuvarlakları yeşile çevirmek için
+                    foreach (var sId in newAttendanceIds)
+                    {
+                        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("StudentAttended", new
+                        {
+                            StudentId = sId,
+                            Status = "Present" // React bu statüyü görüp yuvarlağı yeşil yapacak
+                        });
+                    }
+
+                    // Yoklama başlatma sayfasındaki "Tanınan Öğrenciler" listesine isimleri düşürmek için
                     await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("CrowdScanUpdate", recognizedNames);
                 }
 
