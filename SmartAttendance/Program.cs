@@ -1,4 +1,4 @@
-using FirebaseAdmin;
+ï»¿using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -15,145 +15,159 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
+using System.IO;
+using System;
+using System.Threading.Tasks;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// --- 1. SIGNALR VE YEREL CORS AYARI ---
-builder.Services.AddSignalR();
-
-builder.Services.AddCors(options =>
+namespace SmartAttendance.WebApi
 {
-    options.AddPolicy("AllowAll", builder =>
+    public class Program
     {
-        builder.WithOrigins(
-                "http://localhost:5173",
-                "http://172.29.84.73:5173",
-                "https://smart-attendance-frontend-nine.vercel.app",
-                "https://delaine-ungrooved-yosef.ngrok-free.dev" // <--- NGROK LÝNKÝN BURADA
-               )
-               .AllowAnyMethod()
-               .AllowAnyHeader()
-               .AllowCredentials();
-    });
-});
-
-// --- 2. YEREL VERÝTABANI BAÐLANTISI ---
-builder.Services.AddDbContext<SmartAttendanceDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// --- 3. DEPENDENCY INJECTION (Baðýmlýlýklarýn Eklenmesi) ---
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ICourseService, CourseService>();
-builder.Services.AddScoped<IAttendanceService, SmartAttendance.Infrastructure.Services.AttendanceService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddHostedService<AutoAttendanceWorker>();
-builder.Services.AddSingleton<IFaceRecognitionService, FaceRecognitionService>(); // Yapay Zeka Servisimiz
-builder.Services.AddScoped<IAdminService, AdminService>();
-// --- 4. JWT AYARLARI ---
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-    };
-});
-
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-
-// --- 5. SWAGGER VE AUTHORIZE BUTONU AYARLARI ---
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SmartAttendance API", Version = "v1" });
-
-    // Swagger ekranýna Authorize (Token) butonu ekleme
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "Lütfen token'ýnýzý þu formatta girin: Bearer {token}",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
-    {
+        // Asenkron iÅŸlemler (await) olduÄŸu iÃ§in Main metodunu async Task yaptÄ±k
+        public static async Task Main(string[] args)
         {
-            new OpenApiSecurityScheme
+            var builder = WebApplication.CreateBuilder(args);
+
+            // --- 1. SIGNALR VE YEREL CORS AYARI ---
+            builder.Services.AddSignalR();
+
+            builder.Services.AddCors(options =>
             {
-                Reference = new OpenApiReference
+                options.AddPolicy("AllowAll", corsBuilder =>
                 {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                },
-                Scheme = "oauth2",
-                Name = "Bearer",
-                In = ParameterLocation.Header,
-            },
-            new List<string>()
+                    corsBuilder.WithOrigins(
+                            "http://localhost:5173",
+                            "http://172.29.84.73:5173",
+                            "https://smart-attendance-frontend-nine.vercel.app",
+                            "https://delaine-ungrooved-yosef.ngrok-free.dev" // <--- NGROK LÄ°NKÄ°N BURADA
+                           )
+                           .AllowAnyMethod()
+                           .AllowAnyHeader()
+                           .AllowCredentials();
+                });
+            });
+
+            // --- 2. YEREL VERÄ°TABANI BAÄžLANTISI ---
+            builder.Services.AddDbContext<SmartAttendanceDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // --- 3. DEPENDENCY INJECTION (BaÄŸÄ±mlÄ±lÄ±klarÄ±n Eklenmesi) ---
+            builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<ICourseService, CourseService>();
+            builder.Services.AddScoped<IAttendanceService, SmartAttendance.Infrastructure.Services.AttendanceService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddHostedService<AutoAttendanceWorker>();
+
+            // Yapay Zeka Servisimiz Singleton (Ã–lÃ¼msÃ¼z)
+            builder.Services.AddSingleton<IFaceRecognitionService, FaceRecognitionService>();
+
+            builder.Services.AddScoped<IAdminService, AdminService>();
+
+            // --- 4. JWT AYARLARI ---
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                    ValidAudience = builder.Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                };
+            });
+
+            builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
+
+            // --- 5. SWAGGER VE AUTHORIZE BUTONU AYARLARI ---
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "SmartAttendance API", Version = "v1" });
+
+                // Swagger ekranÄ±na Authorize (Token) butonu ekleme
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Description = "LÃ¼tfen token'Ä±nÄ±zÄ± ÅŸu formatta girin: Bearer {token}",
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            },
+                            Scheme = "oauth2",
+                            Name = "Bearer",
+                            In = ParameterLocation.Header,
+                        },
+                        new List<string>()
+                    }
+                });
+            });
+
+            // ==========================================================
+            // --- YENÄ° EKLENECEK FIREBASE BAÅžLATMA KODU ---
+            // ==========================================================
+            var firebaseKeyPath = Path.Combine(Directory.GetCurrentDirectory(), "firebase-key.json");
+            if (File.Exists(firebaseKeyPath) && FirebaseApp.DefaultInstance == null)
+            {
+                FirebaseApp.Create(new AppOptions()
+                {
+                    Credential = GoogleCredential.FromFile(firebaseKeyPath)
+                });
+                Console.WriteLine("Firebase baÅŸarÄ±yla baÅŸlatÄ±ldÄ±!");
+            }
+            else if (!File.Exists(firebaseKeyPath))
+            {
+                Console.WriteLine("DÄ°KKAT: firebase-key.json dosyasÄ± bulunamadÄ±! Bildirimler Ã§alÄ±ÅŸmayacak.");
+            }
+            // ==========================================================
+
+            var app = builder.Build();
+
+            // --- 6. PIPELINE AYARLARI ---
+            // Localde geliÅŸtirme yaparken Swagger her zaman aÃ§Ä±k olsun
+            app.UseSwagger();
+            app.UseSwaggerUI();
+
+            // Ä°ÅžTE BURASI DÃœZELTÄ°LDÄ°! YukarÄ±daki "AllowAll" ismiyle aynÄ± oldu.
+            app.UseCors("AllowAll");
+
+            app.UseAuthentication();
+
+            // BU SATIRI EKLÄ°YORUZ: Sunucudaki resimlerin dÄ±ÅŸarÄ±dan okunabilmesini saÄŸlar
+            app.UseStaticFiles();
+            app.UseAuthorization();
+
+            app.MapHub<AttendanceHub>("/attendanceHub");
+            app.MapControllers();
+
+            // --- 7. OTOMATÄ°K SEED (Lokal DB'yi doldurmak iÃ§in) ---
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                var context = services.GetRequiredService<SmartAttendanceDbContext>();
+
+                // Lokal veritabanÄ± yoksa oluÅŸturur ve Migration'larÄ± yapar
+                context.Database.Migrate();
+
+                // Yapay zeka servisini Ã§aÄŸÄ±rÄ±p DataSeeder'a yolluyoruz
+                var faceService = services.GetRequiredService<IFaceRecognitionService>();
+                await DataSeeder.SeedAsync(context, faceService);
+            }
+
+            app.Run();
         }
-    });
-});
-
-// ==========================================================
-// --- YENÝ EKLENECEK FIREBASE BAÞLATMA KODU ---
-// ==========================================================
-var firebaseKeyPath = Path.Combine(Directory.GetCurrentDirectory(), "firebase-key.json");
-if (System.IO.File.Exists(firebaseKeyPath) && FirebaseApp.DefaultInstance == null)
-{
-    FirebaseApp.Create(new AppOptions()
-    {
-        Credential = GoogleCredential.FromFile(firebaseKeyPath)
-    });
-    Console.WriteLine("Firebase baþarýyla baþlatýldý!");
+    }
 }
-else if (!System.IO.File.Exists(firebaseKeyPath))
-{
-    Console.WriteLine("DÝKKAT: firebase-key.json dosyasý bulunamadý! Bildirimler çalýþmayacak.");
-}
-// ==========================================================
-
-var app = builder.Build();
-
-// --- 6. PIPELINE AYARLARI ---
-// Localde geliþtirme yaparken Swagger her zaman açýk olsun
-app.UseSwagger();
-app.UseSwaggerUI();
-
-// ÝÞTE BURASI DÜZELTÝLDÝ! Yukarýdaki "AllowAll" ismiyle ayný oldu.
-app.UseCors("AllowAll");
-
-// Yerel testlerde sorun yaþamamak için HTTPS yönlendirmesini opsiyonel yapabilirsin
-// app.UseHttpsRedirection(); 
-
-app.UseAuthentication();
-
-// BU SATIRI EKLÝYORUZ: Sunucudaki resimlerin dýþarýdan okunabilmesini saðlar
-app.UseStaticFiles();
-app.UseAuthorization();
-
-app.MapHub<AttendanceHub>("/attendanceHub");
-app.MapControllers();
-
-// --- 7. OTOMATÝK SEED (Lokal DB'yi doldurmak için) ---
-
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<SmartAttendanceDbContext>();
-
-    // Lokal veritabaný yoksa oluþturur ve Migration'larý yapar
-    context.Database.Migrate();
-
-    // DataSeeder sýnýfýndaki baþlangýç verilerini ekler
-   // await DataSeeder.SeedAsync(context); // Not: Eðer DataSeeder kullanmýyorsan bu satýrý yoruma alabilirsin.
-}
-
-app.Run();

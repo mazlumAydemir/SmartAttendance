@@ -11,5 +11,7 @@ namespace SmartAttendance.Application.Interfaces
     {
         // Sınıfın fotoğrafını alır, içindeki yüzleri bulur ve veritabanındaki öğrencilerle eşleşenlerin ID'lerini döner
         Task<List<int>> IdentifyStudentsInCrowdAsync(int sessionId, IFormFile frame);
+        // Öğrenci kayıt olurken veya DataSeeder çalışırken fotoğrafı 512'lik şifreye çevirir
+        Task<string> GenerateFaceEncodingAsync(byte[] imageBytes);
     }
 }

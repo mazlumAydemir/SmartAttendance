@@ -1,81 +1,52 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SmartAttendance.Domain.Entities;
 using SmartAttendance.Domain.Enums;
+using SmartAttendance.Application.Interfaces; // YENİ: Yapay Zeka Servisi için eklendi
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
-using FaceRecognitionDotNet; // Yapay Zeka Kütüphanesi eklendi
 
 namespace SmartAttendance.Infrastructure.Persistence
 {
     public static class DataSeeder
     {
-        public static async Task SeedAsync(SmartAttendanceDbContext context)
+        // YENİ: IFaceRecognitionService parametresi eklendi
+        public static async Task SeedAsync(SmartAttendanceDbContext context, IFaceRecognitionService faceRecognitionService)
         {
             var passHash = BCrypt.Net.BCrypt.HashPassword("123456");
 
             // ==================================================================================
-            // ⭐ YAPAY ZEKA: FOTOĞRAFLARDAN YÜZ VEKTÖRÜ ÇIKARMA ⭐
+            // ⭐ YENİ YAPAY ZEKA: FOTOĞRAFLARDAN 512 BOYUTLU VEKTÖR ÇIKARMA
             // ==================================================================================
             string mazlumFaceVectorJson = null;
             string ibrahimFaceVectorJson = null;
 
-            string baseDir = Directory.GetCurrentDirectory();
-            string aiModelPath = Path.Combine(baseDir, "AI_Model");
+            // DOSYA YOLUNU GARANTİYE ALALIM:
+            // Uygulamanın ana dizinini bulur (wwwroot'un olduğu yer)
+            string baseDir = AppContext.BaseDirectory.Split(new[] { "\\bin", "/bin" }, StringSplitOptions.None)[0];
 
-            string mazlumImagePath = Path.Combine(baseDir, "wwwroot", "img", "mazlumAydemir.jpeg");
-            string ibrahimImagePath = Path.Combine(baseDir, "wwwroot", "img", "ibrahim.jpeg");
+            string mazlumPath = Path.Combine(baseDir, "wwwroot", "img", "mazlumAydemir.jpeg");
+            string ibrahimPath = Path.Combine(baseDir, "wwwroot", "img", "ibrahim.jpeg");
 
-            // 1. KONTROL: AI Modelleri Klasörü Var mı?
-            if (!Directory.Exists(aiModelPath))
-                throw new Exception($"KRİTİK HATA: Yapay Zeka modelleri bulunamadı! Sistem şu yolda aradı: {aiModelPath}");
-
-            // YAPAY ZEKA MOTORUNU ÇALIŞTIR
-            using var fr = FaceRecognition.Create(aiModelPath);
-
-            // ---------------------------------------------------------
-            // 1. MAZLUM İÇİN İŞLEMLER
-            // ---------------------------------------------------------
-            if (!File.Exists(mazlumImagePath))
-                throw new Exception($"KRİTİK HATA: Mazlum'un fotoğrafı bulunamadı! Yol: {mazlumImagePath}");
-
-            using var mazlumImage = FaceRecognition.LoadImageFile(mazlumImagePath);
-            var mazlumFaceLocations = fr.FaceLocations(mazlumImage).ToArray();
-
-            if (mazlumFaceLocations.Length == 0)
-                throw new Exception("KRİTİK HATA: Mazlum'un fotoğrafında İNSAN YÜZÜ tespit edilemedi!");
-
-            var mazlumEncodings = fr.FaceEncodings(mazlumImage, mazlumFaceLocations).ToArray();
-            if (mazlumEncodings.Length > 0)
+            // MAZLUM TEST
+            if (File.Exists(mazlumPath))
             {
-                var rawVector = mazlumEncodings[0].GetRawEncoding().ToArray();
-                mazlumFaceVectorJson = JsonSerializer.Serialize(rawVector);
+                var bytes = await File.ReadAllBytesAsync(mazlumPath);
+                mazlumFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
+                if (mazlumFaceVectorJson == null) Console.WriteLine("❌ HATA: Mazlum'un yüzü analiz edilemedi!");
             }
-            foreach (var e in mazlumEncodings) e.Dispose();
+            else { Console.WriteLine($"❌ HATA: Mazlum dosyası bulunamadı! Aranan yol: {mazlumPath}"); }
 
-            // ---------------------------------------------------------
-            // 2. İBRAHİM İÇİN İŞLEMLER
-            // ---------------------------------------------------------
-            if (!File.Exists(ibrahimImagePath))
-                throw new Exception($"KRİTİK HATA: İbrahim'in fotoğrafı bulunamadı! Yol: {ibrahimImagePath}");
-
-            using var ibrahimImage = FaceRecognition.LoadImageFile(ibrahimImagePath);
-            var ibrahimFaceLocations = fr.FaceLocations(ibrahimImage).ToArray();
-
-            if (ibrahimFaceLocations.Length == 0)
-                throw new Exception("KRİTİK HATA: İbrahim'in fotoğrafında İNSAN YÜZÜ tespit edilemedi!");
-
-            var ibrahimEncodings = fr.FaceEncodings(ibrahimImage, ibrahimFaceLocations).ToArray();
-            if (ibrahimEncodings.Length > 0)
+            // İBRAHİM TEST
+            if (File.Exists(ibrahimPath))
             {
-                var rawVector = ibrahimEncodings[0].GetRawEncoding().ToArray();
-                ibrahimFaceVectorJson = JsonSerializer.Serialize(rawVector);
+                var bytes = await File.ReadAllBytesAsync(ibrahimPath);
+                ibrahimFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
+                if (ibrahimFaceVectorJson == null) Console.WriteLine("❌ HATA: Ibrahim'un yüzü analiz edilemedi!");
             }
-            foreach (var e in ibrahimEncodings) e.Dispose();
-
+            else { Console.WriteLine($"❌ HATA: Ibrahim dosyası bulunamadı! Aranan yol: {ibrahimPath}"); }
 
             // ==================================================================================
             // 1. KULLANICILAR (Eğer boşsa ekler)
@@ -93,6 +64,7 @@ namespace SmartAttendance.Infrastructure.Persistence
                     new User { FullName = "Elif Bozkurt", Email = "elif.bozkurt@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
 
                     // Öğrenciler (Yüz verileri ve Profil URL'leri ile)
+                    // 🔥 Yeni ArcFace vektörleri buraya yazılıyor
                     new User { FullName = "Mazlum Aydemir", Email = "mazlum@std.smart.edu.tr", SchoolNumber="23002741", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = mazlumFaceVectorJson, ProfilePictureUrl = "/img/mazlumAydemir.jpeg" },
                     new User { FullName = "ibrahim filoğlu", Email = "ibrahim@std.smart.edu.tr", SchoolNumber="23002742", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = ibrahimFaceVectorJson, ProfilePictureUrl = "/img/ibrahim.jpeg" },
 
