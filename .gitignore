@@ -75,3 +75,8 @@ secrets.*
 # Ignore local AI model binaries
 AI_Model/
 AI_Model/*.onnx
+
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.json
+appsettings.json
