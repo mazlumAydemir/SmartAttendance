@@ -3,3 +3,75 @@ bin/
 obj/
 *.user
 *.suo
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+artifacts/
+publish/
+
+# Rider / IntelliJ / VSCode
+.idea/
+.vscode/
+
+# NuGet
+packages/
+*.nupkg
+.nuget/
+
+# Dotnet / MSBuild
+project.lock.json
+project.fragment.lock.json
+*.vspscc
+
+# Logs / temp
+*.log
+logs/
+*.tmp
+tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local DB files
+*.mdf
+*.ldf
+*.sqlite
+*.db
+*.db-journal
+
+# Node (if any frontend)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Secrets / keys (DO NOT commit)
+firebase-key.json
+*.pfx
+*.key
+*.pem
+.env
+.env.*
+secrets.json
+secrets.*
+
+# User-specific / publish
+*.Publish.xml
+*.pubxml.user
+
+# Generated / IDE caches
+*.userprefs
+*.vsix
+
+# Ignore local AI model binaries
+AI_Model/
+AI_Model/*.onnx
