@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using SmartAttendance.Application.DTOs.Admin;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using SmartAttendance.Application.DTOs.Admin;
 using System.Threading.Tasks;
 
 namespace SmartAttendance.Application.Interfaces
@@ -24,7 +24,7 @@ namespace SmartAttendance.Application.Interfaces
         Task<List<FacultyLookupDto>> GetFacultiesLookupAsync();
         Task<List<DepartmentLookupDto>> GetDepartmentsLookupAsync();
 
-        Task<bool> CreateStudentAsync(CreateStudentDto dto);
+        Task<int> CreateStudentAsync(CreateStudentDto dto);
         Task<bool> ToggleStudentStatusAsync(int studentId);
         // Ders Ekleme
         Task<bool> CreateCourseAsync(CreateCourseDto dto);
@@ -38,5 +38,7 @@ namespace SmartAttendance.Application.Interfaces
         Task<List<CourseScheduleListDto>> GetCourseSchedulesAsync(int courseId);
         Task<List<ClassLocationListDto>> GetAllClassLocationsAsync();
         Task<bool> CreateClassLocationAsync(CreateClassLocationDto dto);
+        Task<bool> RegisterStudentFaceAsync(int studentId, IFormFile faceImage);
+        
     }
 }

@@ -13,5 +13,6 @@ namespace SmartAttendance.Application.DTOs.Admin
         public System.TimeSpan StartTime { get; set; }
         public System.TimeSpan EndTime { get; set; }
         public string LocationName { get; set; }
+        
     }
 }

@@ -13,5 +13,6 @@ namespace SmartAttendance.Application.DTOs.Admin
         public string CourseCode { get; set; }
         public int StudentCount { get; set; }
         public bool IsActive { get; set; }
+        public string InstructorName { get; set; }
     }
 }

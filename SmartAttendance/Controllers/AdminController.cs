@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartAttendance.Application.DTOs.Admin;
 using SmartAttendance.Application.Interfaces;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace SmartAttendance.WebApi.Controllers
@@ -24,7 +27,6 @@ namespace SmartAttendance.WebApi.Controllers
             var stats = await _adminService.GetDashboardStatsAsync();
             return Ok(stats);
         }
-        // ... (GetDashboardStats metodu duruyor)
 
         [HttpGet("teachers/stats")]
         public async Task<IActionResult> GetTeacherStats()
@@ -39,6 +41,7 @@ namespace SmartAttendance.WebApi.Controllers
             var teachers = await _adminService.GetAllTeachersAsync();
             return Ok(teachers);
         }
+
         [HttpGet("students/stats")]
         public async Task<IActionResult> GetStudentStats()
         {
@@ -52,12 +55,14 @@ namespace SmartAttendance.WebApi.Controllers
             var students = await _adminService.GetAllStudentsAsync();
             return Ok(students);
         }
-        [HttpGet("courses")] // <-- React'ın bulamadığı adres burası!
+
+        [HttpGet("courses")]
         public async Task<IActionResult> GetAllCourses()
         {
             var courses = await _adminService.GetAllCoursesAsync();
             return Ok(courses);
         }
+
         [HttpGet("export/students")]
         public async Task<IActionResult> ExportStudentsCsv()
         {
@@ -65,7 +70,7 @@ namespace SmartAttendance.WebApi.Controllers
 
             var builder = new System.Text.StringBuilder();
 
-            // 1. DÜZELTME: Virgül (,) yerine Noktalı Virgül (;) kullanıyoruz. 
+            // Virgül (,) yerine Noktalı Virgül (;) kullanıyoruz. 
             // Böylece Excel sütunları kusursuz ayıracak.
             builder.AppendLine("Öğrenci ID;Ad Soyad;Okul Numarası;Bölüm;Sınıf;Durum");
 
@@ -75,7 +80,7 @@ namespace SmartAttendance.WebApi.Controllers
                 builder.AppendLine($"{s.Id};{s.FullName};{s.SchoolNumber};{s.DepartmentName};{s.GradeLevel};{durum}");
             }
 
-            // 2. DÜZELTME: Excel'in Türkçe karakterleri tanıması için UTF-8 BOM damgası ekliyoruz
+            // Excel'in Türkçe karakterleri tanıması için UTF-8 BOM damgası ekliyoruz
             byte[] bom = new byte[] { 0xEF, 0xBB, 0xBF };
             byte[] fileBytes = System.Text.Encoding.UTF8.GetBytes(builder.ToString());
 
@@ -86,6 +91,7 @@ namespace SmartAttendance.WebApi.Controllers
 
             return File(finalBytes, "text/csv", "Ogrenciler.csv");
         }
+
         [HttpPost("teachers")]
         public async Task<IActionResult> CreateTeacher([FromBody] CreateTeacherDto dto)
         {
@@ -99,6 +105,7 @@ namespace SmartAttendance.WebApi.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
         [HttpGet("faculties-lookup")]
         public async Task<IActionResult> GetFaculties()
         {
@@ -110,6 +117,7 @@ namespace SmartAttendance.WebApi.Controllers
         {
             return Ok(await _adminService.GetDepartmentsLookupAsync());
         }
+
         [HttpPut("teachers/{id}/toggle-status")]
         public async Task<IActionResult> ToggleTeacherStatus(int id)
         {
@@ -117,19 +125,6 @@ namespace SmartAttendance.WebApi.Controllers
             {
                 var newStatus = await _adminService.ToggleTeacherStatusAsync(id);
                 return Ok(new { message = "Öğretmen durumu güncellendi.", isActive = newStatus });
-            }
-            catch (System.Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-        [HttpPost("students")]
-        public async Task<IActionResult> CreateStudent([FromForm] CreateStudentDto dto)
-        {
-            try
-            {
-                await _adminService.CreateStudentAsync(dto);
-                return Ok(new { message = "Öğrenci başarıyla eklendi." });
             }
             catch (System.Exception ex)
             {
@@ -150,6 +145,7 @@ namespace SmartAttendance.WebApi.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
         [HttpPost("courses")]
         public async Task<IActionResult> CreateCourse([FromBody] CreateCourseDto dto)
         {
@@ -175,6 +171,7 @@ namespace SmartAttendance.WebApi.Controllers
             await _adminService.AssignStudentsToCourseAsync(courseId, studentIds);
             return Ok(new { message = "Öğrenciler derse atandı." });
         }
+
         [HttpGet("class-locations-lookup")]
         public async Task<IActionResult> GetClassLocations()
         {
@@ -194,11 +191,13 @@ namespace SmartAttendance.WebApi.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
         [HttpGet("courses/{courseId}/schedules")]
         public async Task<IActionResult> GetCourseSchedules(int courseId)
         {
             return Ok(await _adminService.GetCourseSchedulesAsync(courseId));
         }
+
         [HttpGet("class-locations")]
         public async Task<IActionResult> GetAllClassLocations()
         {
@@ -218,8 +217,44 @@ namespace SmartAttendance.WebApi.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        // =========================================================
+        // ÖĞRENCİ EKLEME VE YÜZ TANIMA KISMI (ÇAKIŞMA GİDERİLDİ)
+        // =========================================================
+
+        [HttpPost("students")]
+        public async Task<IActionResult> CreateStudent([FromForm] CreateStudentDto dto)
+        {
+            try
+            {
+                // ARTIK BİZE ID DÖNDÜRÜYOR (İş Katmanı üzerinden)
+                int newStudentId = await _adminService.CreateStudentAsync(dto);
+
+                // REACT'IN BEKLEDİĞİ FORMATTA "id" OLARAK DÖNÜYORUZ
+                return Ok(new { message = "Öğrenci başarıyla eklendi.", id = newStudentId });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // Yeni Yüz Ekleme Endpoint'i
+        // Yeni Yüz Ekleme Endpoint'i
+        [HttpPost("register-face")]
+        // Parametreleri ayrı ayrı değil, tek bir [FromForm] DTO'su olarak alıyoruz
+        public async Task<IActionResult> RegisterFace([FromForm] RegisterFaceDto dto)
+        {
+            try
+            {
+                // dto.StudentId ve dto.FaceImage olarak servisimize yolluyoruz
+                await _adminService.RegisterStudentFaceAsync(dto.StudentId, dto.FaceImage);
+                return Ok(new { message = "Yüz verisi başarıyla kaydedildi!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
-
-
-
 }
