@@ -16,18 +16,14 @@ jobs:
     - name: .NET Kur
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.x' # Eğer .NET 7 kullanıyorsan 7.x yap
+        dotnet-version: '8.x' # .NET 8 kullanıyorsan 8.x, 7 ise 7.x yap
 
-    # 🔥 YENİ: Sorunu bulmamız için klasör yapısını ekrana yazdıracak
-    - name: Klasör Yapısını İncele
-      run: dir
-
-    # 🔥 DÜZELTME: Visual Studio varsayılan klasör yapısına göre yol güncellendi
+    # 🔥 SON DÜZELTME: Sadece klasör adını veriyoruz, .NET içindeki dosyayı kendi bulur!
     - name: Projeyi Derle (Build)
-      run: dotnet build SmartAttendance/SmartAttendance.WebApi/SmartAttendance.WebApi.csproj --configuration Release
+      run: dotnet build SmartAttendance --configuration Release
 
     - name: Projeyi Paketle (Publish)
-      run: dotnet publish SmartAttendance/SmartAttendance.WebApi/SmartAttendance.WebApi.csproj -c Release -o ./publish_output
+      run: dotnet publish SmartAttendance -c Release -o ./publish_output
 
     - name: Azure'a Yükle (Deploy)
       uses: azure/webapps-deploy@v3
