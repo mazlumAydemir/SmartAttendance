@@ -16,14 +16,17 @@ jobs:
     - name: .NET Kur
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.x' # .NET 8 kullanıyorsan 8.x, 7 ise 7.x yap
+        dotnet-version: '8.x'
 
-    # 🔥 SON DÜZELTME: Sadece klasör adını veriyoruz, .NET içindeki dosyayı kendi bulur!
+    # 🔥 KESİN ÇÖZÜM: Robota "SmartAttendance klasörünün İÇİNE GİR ve ne bulursan derle" diyoruz.
     - name: Projeyi Derle (Build)
-      run: dotnet build SmartAttendance --configuration Release
+      working-directory: ./SmartAttendance
+      run: dotnet build --configuration Release
 
+    # Yine o klasörün içindeyken paketliyor ve dosyaları bir üst klasöre (publish_output) çıkarıyoruz.
     - name: Projeyi Paketle (Publish)
-      run: dotnet publish SmartAttendance -c Release -o ./publish_output
+      working-directory: ./SmartAttendance
+      run: dotnet publish -c Release -o ../publish_output
 
     - name: Azure'a Yükle (Deploy)
       uses: azure/webapps-deploy@v3
