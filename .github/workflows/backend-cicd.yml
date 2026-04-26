@@ -18,15 +18,12 @@ jobs:
       with:
         dotnet-version: '8.x'
 
-    # 🔥 KESİN ÇÖZÜM: Robota "SmartAttendance klasörünün İÇİNE GİR ve ne bulursan derle" diyoruz.
+    # 🔥 KESİN ÇÖZÜM: Klasörün içindeki tam dosya adını (uzantısıyla birlikte) verdik
     - name: Projeyi Derle (Build)
-      working-directory: ./SmartAttendance
-      run: dotnet build --configuration Release
+      run: dotnet build SmartAttendance/SmartAttendance.WebApi.csproj --configuration Release
 
-    # Yine o klasörün içindeyken paketliyor ve dosyaları bir üst klasöre (publish_output) çıkarıyoruz.
     - name: Projeyi Paketle (Publish)
-      working-directory: ./SmartAttendance
-      run: dotnet publish -c Release -o ../publish_output
+      run: dotnet publish SmartAttendance/SmartAttendance.WebApi.csproj -c Release -o ./publish_output
 
     - name: Azure'a Yükle (Deploy)
       uses: azure/webapps-deploy@v3
