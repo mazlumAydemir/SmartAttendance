@@ -1,0 +1,39 @@
+name: Deploy Backend to Azure
+
+# 1. TETİKLEYİCİ: Main dalına kod pushlandığında çalışır
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest # C# projeleri için Windows sunucusu kullanıyoruz
+
+    steps:
+    # 2. Kodu GitHub'dan makineye indir
+    - name: Kodu İndir (Checkout)
+      uses: actions/checkout@v4
+
+    # 3. .NET Kurulumu (Projen .NET 8 ise 8.x, .NET 7 ise 7.x yap)
+    - name: .NET Kur
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.x' 
+
+    # 4. Uygulamayı Derle (Şef yemeğin tadına bakıyor / Hata var mı kontrolü)
+    - name: Projeyi Derle (Build)
+      run: dotnet build --configuration Release
+
+    # 5. Yayınlanacak Paketi Hazırla
+    # NOT: Klasör yolunu kendi Solution yapına göre yazdım
+    - name: Projeyi Paketle (Publish)
+      run: dotnet publish SmartAttendance.WebApi/SmartAttendance.WebApi.csproj -c Release -o ./publish_output
+
+    # 6. Azure'a Yükle (Garson yemeği masaya götürüyor)
+    - name: Azure Web App'e Gönder (Deploy)
+      uses: azure/webapps-deploy@v3
+      with:
+        app-name: 'smartattendance-ffhxgvbsd6h7ancr' # Azure'daki App ismin
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./publish_output
