@@ -1,4 +1,4 @@
-SmartAttendance Backend - Akıllı Yoklama Sistemi
+SmartAttendance - Akıllı Yoklama Sistemi
 SmartAttendance, eğitim kurumları için geliştirilmiş; Yüz Tanıma (AI), QR Kod ve Konum Doğrulama yöntemlerini birleştiren modern bir yoklama otomasyonu sistemidir. Bu repo, projenin .NET 8.0 ile geliştirilen merkezi API ve Yapay Zeka servislerini içerir.
 
 👨‍💻 Bu Projede Ne Yaptım? (Backend)
