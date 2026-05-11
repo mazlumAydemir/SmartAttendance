@@ -39,8 +39,9 @@ namespace SmartAttendance.WebApi
                             "http://localhost:5173",
                             "http://172.29.84.73:5173",
                             "https://smart-attendance-frontend-nine.vercel.app",
-                            "https://delaine-ungrooved-yosef.ngrok-free.dev" // <--- NGROK LİNKİN BURADA
-                           )
+                            "https://delaine-ungrooved-yosef.ngrok-free.dev", // <--- NGROK LİNKİN BURADA
+                            "http://158.220.105.185:5174"
+                            )
                            .AllowAnyMethod()
                            .AllowAnyHeader()
                            .AllowCredentials();

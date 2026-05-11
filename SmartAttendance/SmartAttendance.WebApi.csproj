@@ -15,13 +15,6 @@
 
 
     <ItemGroup>
-      <None Remove="AI_Model\arcface.onnx" />
-      <None Remove="AI_Model\retinaface.onnx" />
-    </ItemGroup>
-
-
-
-    <ItemGroup>
       <Content Include="AI_Model\arcface.onnx">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>

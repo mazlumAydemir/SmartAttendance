@@ -15,11 +15,10 @@ using System.Threading.Tasks;
 
 namespace SmartAttendance.Infrastructure.Services
 {
-    // Yüz verilerini ve noktalarını bir arada tutmak için yardımcı sınıf
     public class FaceData
     {
         public Rect Rectangle { get; set; }
-        public float[] Landmarks { get; set; } // 5 Nokta: Sol Göz, Sağ Göz, Burun, Sol Ağız, Sağ Ağız
+        public float[] Landmarks { get; set; }
     }
 
     public class FaceRecognitionService : IFaceRecognitionService
@@ -36,25 +35,30 @@ namespace SmartAttendance.Infrastructure.Services
 
         private void LoadModels()
         {
-            // Azure ve Canlı ortamlar için en güvenli yol tanımı
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string baseDir = AppContext.BaseDirectory;
             string modelsDirectory = Path.Combine(baseDir, "AI_Model");
             string retinaPath = Path.Combine(modelsDirectory, "retinaface.onnx");
             string arcfacePath = Path.Combine(modelsDirectory, "arcface.onnx");
 
+            Console.WriteLine($"🔍 [AI TEST] Modeller aranıyor: {modelsDirectory}");
+
+            if (!File.Exists(retinaPath) || !File.Exists(arcfacePath))
+            {
+                string error = $"❌ [AI HATASI] Model dosyaları bulunamadı! Yol: {retinaPath}";
+                Console.WriteLine(error);
+                return;
+            }
+
             try
             {
                 var sessionOptions = new SessionOptions();
-                sessionOptions.AppendExecutionProvider_CPU(1);
-
                 _retinaFaceSession = new InferenceSession(retinaPath, sessionOptions);
                 _arcFaceSession = new InferenceSession(arcfacePath, sessionOptions);
-
-                Console.WriteLine("✅ [AI MOTORU] Pipeline v2 (Alignment + High-Res) başarıyla yüklendi!");
+                Console.WriteLine("✅ [AI BAŞARI] RetinaFace ve ArcFace modelleri RAM'e yüklendi.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [AI HATASI] Modeller yüklenemedi: {ex.Message}");
+                Console.WriteLine($"❌ [AI KRİTİK HATA] Modeller yüklenirken hata oluştu: {ex.Message}");
             }
         }
 
@@ -62,11 +66,7 @@ namespace SmartAttendance.Infrastructure.Services
         {
             var recognizedStudentIds = new List<int>();
 
-            // Modeller yüklenmediyse direkt çık (Sessiz hatayı önler)
-            if (_retinaFaceSession == null || _arcFaceSession == null)
-            {
-                throw new Exception("Kritik Hata: AI Modelleri RAM'e yüklenemedi. AI_Model klasörünü ve Azure 64-bit ayarını kontrol edin.");
-            }
+            if (_retinaFaceSession == null || _arcFaceSession == null) return new List<int> { -101 };
 
             using var scope = _scopeFactory.CreateScope();
             var _context = scope.ServiceProvider.GetRequiredService<SmartAttendanceDbContext>();
@@ -88,35 +88,32 @@ namespace SmartAttendance.Infrastructure.Services
             using var memoryStream = new MemoryStream();
             await frame.CopyToAsync(memoryStream);
             using var img = Cv2.ImDecode(memoryStream.ToArray(), ImreadModes.Color);
+
             if (img.Empty()) return recognizedStudentIds;
 
-            // 1. ADIM: Yüksek Hassasiyetli RetinaFace Taraması
+            // 1. RetinaFace ile Yüz Tespiti
             var retinaInput = PreprocessImageForRetinaFace(img);
             var retinaInputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input.1", retinaInput) };
-
             using var retinaResults = _retinaFaceSession.Run(retinaInputs);
-
-            // Landmark verilerini de içeren gelişmiş çıktı çözücü
             var faceList = ExtractDetailedFaces(retinaResults, img.Width, img.Height);
 
-            // Eğer yüz bulunamazsa can simidi olarak resmin tamamını ekle (Landmark boş kalır)
+            // 🔥 KRİTİK DÜZELTME 1: React zaten kırpılmış yüz atıyorsa RetinaFace hiçbir şey bulamayabilir.
+            // Bu durumda resmin kendisinin zaten bir "Yüz" olduğunu varsayıp devam ediyoruz!
             if (faceList.Count == 0)
             {
-                faceList.Add(new FaceData { Rectangle = new Rect(0, 0, img.Width, img.Height), Landmarks = null });
+                faceList.Add(new FaceData { Rectangle = new Rect(0, 0, img.Width, img.Height) });
             }
 
-            // 2. ADIM: Kimlik Tanıma (Alignment Dahil)
+            // 2. ArcFace ile Karşılaştırma
             foreach (var face in faceList)
             {
                 try
                 {
-                    // "Using atama hatasını" önleyen temiz metot kullanımı
                     using Mat finalFaceToEmbed = PrepareFaceForArcFace(img, face);
-
                     float[] liveVector = GetArcFaceEmbedding(finalFaceToEmbed);
 
                     int? bestMatchId = null;
-                    double highestSimilarity = 0.26; // Uzak mesafe için optimize edilmiş eşik
+                    double highestSimilarity = 0.45; // Benim denemelerimde 0.45 civarı iyi sonuç veriyor, çok düşük tutarsak yanlış eşleşmeler olabilir.
 
                     foreach (var student in enrolledStudents)
                     {
@@ -137,65 +134,22 @@ namespace SmartAttendance.Infrastructure.Services
                         recognizedStudentIds.Add(bestMatchId.Value);
                     }
                 }
-                catch { continue; }
-            }
-
-            // Teşhis için: Hiç yüz bulunmadıysa -999, bulundu ama tanınmadıysa -888 dön
-            if (recognizedStudentIds.Count == 0)
-            {
-                if (faceList.Count == 1 && faceList[0].Landmarks == null) recognizedStudentIds.Add(-999);
-                else recognizedStudentIds.Add(-888);
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ [AI] Yüz işlenirken hata: {ex.Message}");
+                    continue;
+                }
             }
 
             return recognizedStudentIds;
         }
 
-        // =========================================================================================
-        // PIPELINE FONKSİYONLARI (ALIGNMENT, PREPROCESS, EMBEDDING)
-        // =========================================================================================
-
-        // USING hatasını önleyen yardımcı metot
         private Mat PrepareFaceForArcFace(Mat originalImg, FaceData face)
         {
-            using Mat rawFace = new Mat(originalImg, face.Rectangle);
-
-            if (face.Landmarks != null)
-            {
-                // Yüzü Hizala (Alignment)
-                return AlignFace(rawFace, face.Landmarks, face.Rectangle);
-            }
-            else
-            {
-                // Hizalama yoksa sadece yeniden boyutlandır
-                Mat resizedFace = new Mat();
-                Cv2.Resize(rawFace, resizedFace, new Size(112, 112));
-                return resizedFace;
-            }
-        }
-
-        private Mat AlignFace(Mat faceImg, float[] landmarks, Rect rect)
-        {
-            // RetinaFace'ten gelen 5 landmark noktasını al (Resim koordinatlarına göre)
-            float lx = landmarks[0] - rect.X;
-            float ly = landmarks[1] - rect.Y;
-            float rx = landmarks[2] - rect.X;
-            float ry = landmarks[3] - rect.Y;
-
-            // İki göz arasındaki açıyı hesapla
-            double dy = ry - ly;
-            double dx = rx - lx;
-            double angle = Math.Atan2(dy, dx) * 180.0 / Math.PI;
-
-            Point2f center = new Point2f(faceImg.Width / 2, faceImg.Height / 2);
-            Mat rotMatrix = Cv2.GetRotationMatrix2D(center, angle, 1.0);
-
-            Mat rotated = new Mat();
-            Cv2.WarpAffine(faceImg, rotated, rotMatrix, faceImg.Size());
-
-            Mat finalFace = new Mat();
-            Cv2.Resize(rotated, finalFace, new Size(112, 112));
-
-            return finalFace;
+            Mat faceRegion = new Mat(originalImg, face.Rectangle);
+            Mat resized = new Mat();
+            Cv2.Resize(faceRegion, resized, new Size(112, 112));
+            return resized;
         }
 
         private float[] GetArcFaceEmbedding(Mat faceImg)
@@ -231,9 +185,9 @@ namespace SmartAttendance.Infrastructure.Services
                 for (int x = 0; x < 640; x++)
                 {
                     var pixel = resized.At<Vec3b>(y, x);
-                    tensor[0, 0, y, x] = pixel.Item2 - 104f; // B
-                    tensor[0, 1, y, x] = pixel.Item1 - 117f; // G
-                    tensor[0, 2, y, x] = pixel.Item0 - 123f; // R
+                    tensor[0, 0, y, x] = pixel.Item2 - 104f;
+                    tensor[0, 1, y, x] = pixel.Item1 - 117f;
+                    tensor[0, 2, y, x] = pixel.Item0 - 123f;
                 }
             }
             return tensor;
@@ -244,43 +198,70 @@ namespace SmartAttendance.Infrastructure.Services
             var faceList = new List<FaceData>();
             var resultsList = results.ToList();
 
-            var bboxesRaw = resultsList.FirstOrDefault(r => r.AsEnumerable<float>().Count() % 4 == 0)?.AsEnumerable<float>().ToArray();
-            var scoresRaw = resultsList.FirstOrDefault(r => r.AsEnumerable<float>().Count() % 4 != 0 && r.AsEnumerable<float>().Count() % 10 != 0)?.AsEnumerable<float>().ToArray();
-            var landmarksRaw = resultsList.FirstOrDefault(r => r.AsEnumerable<float>().Count() % 10 == 0)?.AsEnumerable<float>().ToArray();
+            var bboxesRaw = resultsList.FirstOrDefault(r => r.Name == "face_bboxes")?.AsEnumerable<float>().ToArray()
+                           ?? resultsList[0].AsEnumerable<float>().ToArray();
+            var scoresRaw = resultsList.FirstOrDefault(r => r.Name == "face_scores")?.AsEnumerable<float>().ToArray()
+                           ?? resultsList[1].AsEnumerable<float>().ToArray();
 
-            if (bboxesRaw == null || scoresRaw == null) return faceList;
-
-            float threshold = 0.35f; // Uzaktakiler için hassas eşik
+            float threshold = 0.25f;
 
             for (int i = 0; i < scoresRaw.Length; i++)
             {
                 if (scoresRaw[i] > threshold)
                 {
-                    int x = (int)Math.Clamp(bboxesRaw[i * 4] * originalWidth / 640, 0, originalWidth);
-                    int y = (int)Math.Clamp(bboxesRaw[i * 4 + 1] * originalHeight / 640, 0, originalHeight);
-                    int w = (int)Math.Clamp((bboxesRaw[i * 4 + 2] - bboxesRaw[i * 4]) * originalWidth / 640, 10, originalWidth - x);
-                    int h = (int)Math.Clamp((bboxesRaw[i * 4 + 3] - bboxesRaw[i * 4 + 1]) * originalHeight / 640, 10, originalHeight - y);
+                    int x = (int)(bboxesRaw[i * 4] * originalWidth / 640);
+                    int y = (int)(bboxesRaw[i * 4 + 1] * originalHeight / 640);
+                    int x2 = (int)(bboxesRaw[i * 4 + 2] * originalWidth / 640);
+                    int y2 = (int)(bboxesRaw[i * 4 + 3] * originalHeight / 640);
 
-                    float[] landmarks = null;
-                    if (landmarksRaw != null)
+                    // Sınırları aşmayı engelle
+                    x = Math.Max(0, x);
+                    y = Math.Max(0, y);
+                    x2 = Math.Min(originalWidth, x2);
+                    y2 = Math.Min(originalHeight, y2);
+
+                    if (x2 > x && y2 > y)
                     {
-                        landmarks = new float[10];
-                        for (int l = 0; l < 10; l++)
-                        {
-                            float scale = (l % 2 == 0) ? originalWidth : originalHeight;
-                            landmarks[l] = landmarksRaw[i * 10 + l] * scale / 640;
-                        }
+                        faceList.Add(new FaceData { Rectangle = new Rect(x, y, x2 - x, y2 - y) });
                     }
-
-                    faceList.Add(new FaceData { Rectangle = new Rect(x, y, w, h), Landmarks = landmarks });
                 }
             }
             return faceList;
         }
 
+        // 🔥 KRİTİK DÜZELTME 2: Öğrencileri sisteme kaydederken YÜZÜ KIRPIP kaydet.
+        public async Task<string> GenerateFaceEncodingAsync(byte[] imageBytes)
+        {
+            if (_arcFaceSession == null || _retinaFaceSession == null) return null;
+
+            using Mat img = Cv2.ImDecode(imageBytes, ImreadModes.Color);
+            if (img.Empty()) return null;
+
+            // Önce fotoğraftaki yüzü bulalım
+            var retinaInput = PreprocessImageForRetinaFace(img);
+            var retinaInputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input.1", retinaInput) };
+            using var retinaResults = _retinaFaceSession.Run(retinaInputs);
+            var faceList = ExtractDetailedFaces(retinaResults, img.Width, img.Height);
+
+            Mat faceToEmbed;
+            if (faceList.Count > 0)
+            {
+                // Yüz bulunduysa, sadece yüzü kes (ArcFace'in istediği gibi)
+                faceToEmbed = PrepareFaceForArcFace(img, faceList[0]);
+            }
+            else
+            {
+                // Çok nadir durumlarda yüz bulamazsa orijinal resmi 112x112'ye sığdır
+                faceToEmbed = new Mat();
+                Cv2.Resize(img, faceToEmbed, new Size(112, 112));
+            }
+
+            float[] vector = GetArcFaceEmbedding(faceToEmbed);
+            return JsonSerializer.Serialize(vector);
+        }
         private double ComputeCosineSimilarity(float[] vectorA, float[] vectorB)
         {
-            double dotProduct = 0.0, normA = 0.0, normB = 0.0;
+            double dotProduct = 0, normA = 0, normB = 0;
             for (int i = 0; i < vectorA.Length; i++)
             {
                 dotProduct += vectorA[i] * vectorB[i];
@@ -288,20 +269,6 @@ namespace SmartAttendance.Infrastructure.Services
                 normB += vectorB[i] * vectorB[i];
             }
             return (normA == 0 || normB == 0) ? 0 : dotProduct / (Math.Sqrt(normA) * Math.Sqrt(normB));
-        }
-
-        public async Task<string> GenerateFaceEncodingAsync(byte[] imageBytes)
-        {
-            if (_arcFaceSession == null) return null;
-            using Mat img = Cv2.ImDecode(imageBytes, ImreadModes.Color);
-            if (img.Empty()) return null;
-
-            // Veritabanı Seed işlemi için basit kırpma
-            using Mat resizedFace = new Mat();
-            Cv2.Resize(img, resizedFace, new Size(112, 112));
-            float[] vector = GetArcFaceEmbedding(resizedFace);
-
-            return JsonSerializer.Serialize(vector);
         }
     }
 }

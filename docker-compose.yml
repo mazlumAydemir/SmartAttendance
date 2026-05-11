@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  smart_api:
+    build: 
+      context: .
+      dockerfile: SmartAttendance.WebApi/Dockerfile # Dockerfile'ının tam yolunu buraya yaz
+    container_name: smart_api
+    ports:
+      - "7221:8080" # Bu API 7221 portundan çalışacak
+    environment:
+      # Veritabanı olarak AZURE'u değil, Chat projesindeki SQL'i (chatapp_sql) hedef gösteriyoruz!
+      - ConnectionStrings__DefaultConnection=Server=chatapp_sql;Database=SmartAttendanceDb;User Id=sa;Password=YourStrong@Passw0rd!;TrustServerCertificate=True;
+    networks:
+      - ortak_ag
+
+networks:
+  ortak_ag:
+    external: true
+    name: chatprojesi_default # Bulduğumuz ağın adını buraya yazdık!
