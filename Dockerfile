@@ -21,6 +21,6 @@ COPY --from=build /app/publish .
 
 # Firebase anahtarını da kopyalıyoruz ki bildirimler çalışsın
 COPY SmartAttendance.WebApi/firebase-key.json ./firebase-key.json
-
+COPY SmartAttendance/AI_Model ./AI_Model
 # Uygulamayı Başlat
 ENTRYPOINT ["dotnet", "SmartAttendance.WebApi.dll"]
