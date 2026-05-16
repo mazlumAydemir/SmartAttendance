@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,14 +18,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.17.1" />
-
-    <PackageReference Include="OpenCvSharp4" Version="4.9.0.20240103" />
-    <PackageReference Include="OpenCvSharp4.Extensions" Version="4.9.0.20240103" />
-
-    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.9.0.20240103" />
-    <PackageReference Include="OpenCvSharp4.runtime.linux-x64" Version="4.9.0.20240103" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.16.3" />
+      <PackageReference Include="OpenCvSharp4" Version="4.9.0.20240103" />
+      <PackageReference Include="OpenCvSharp4.Extensions" Version="4.9.0.20240103" />
+      <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.9.0.20240103" />
+      <PackageReference Include="OpenCvSharp4.runtime.linux-x64" Version="4.9.0.20240103" />
+  
   </ItemGroup>
 
   <ItemGroup>
