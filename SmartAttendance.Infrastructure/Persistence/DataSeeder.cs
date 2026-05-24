@@ -22,13 +22,14 @@ namespace SmartAttendance.Infrastructure.Persistence
             // ==================================================================================
             string mazlumFaceVectorJson = null;
             string ibrahimFaceVectorJson = null;
-
+            string erenFaceVectorJson = null;
             // DOSYA YOLUNU GARANTİYE ALALIM:
             // Uygulamanın ana dizinini bulur (wwwroot'un olduğu yer)
             string baseDir = AppContext.BaseDirectory.Split(new[] { "\\bin", "/bin" }, StringSplitOptions.None)[0];
 
             string mazlumPath = Path.Combine(baseDir, "wwwroot", "img", "mazlumAydemir.jpeg");
             string ibrahimPath = Path.Combine(baseDir, "wwwroot", "img", "ibrahim.jpeg");
+            string erenPath = Path.Combine(baseDir, "wwwroot", "img", "eren.jpeg");
 
             // MAZLUM TEST
             if (File.Exists(mazlumPath))
@@ -39,6 +40,14 @@ namespace SmartAttendance.Infrastructure.Persistence
             }
             else { Console.WriteLine($"❌ HATA: Mazlum dosyası bulunamadı! Aranan yol: {mazlumPath}"); }
 
+            // eren TEST
+            if (File.Exists(mazlumPath))
+            {
+                var bytes = await File.ReadAllBytesAsync(erenPath);
+                erenFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
+                if (erenFaceVectorJson == null) Console.WriteLine("❌ HATA: Eren'in yüzü analiz edilemedi!");
+            }
+            else { Console.WriteLine($"❌ HATA: eren dosyası bulunamadı! Aranan yol: {mazlumPath}"); }
             // İBRAHİM TEST
             if (File.Exists(ibrahimPath))
             {
@@ -67,7 +76,7 @@ namespace SmartAttendance.Infrastructure.Persistence
                     // 🔥 Yeni ArcFace vektörleri buraya yazılıyor
                     new User { FullName = "Mazlum Aydemir", Email = "mazlum@std.smart.edu.tr", SchoolNumber="23002741", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = mazlumFaceVectorJson, ProfilePictureUrl = "/img/mazlumAydemir.jpeg" },
                     new User { FullName = "ibrahim filoğlu", Email = "ibrahim@std.smart.edu.tr", SchoolNumber="23002742", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = ibrahimFaceVectorJson, ProfilePictureUrl = "/img/ibrahim.jpeg" },
-
+                    new User { FullName = "Eren Sakallı", Email = "eren@std.smart.edu.tr", SchoolNumber="23002752", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = erenFaceVectorJson, ProfilePictureUrl = "/img/eren.jpeg" },
                     new User { FullName = "Ayşe Demir", Email = "ayse@std.smart.edu.tr", SchoolNumber="23002743", PasswordHash = passHash, Role = UserRole.Student },
                     new User { FullName = "Fatma Şahin", Email = "fatma@std.smart.edu.tr", SchoolNumber="23002744", PasswordHash = passHash, Role = UserRole.Student },
                     new User { FullName = "Mehmet Can", Email = "mehmet@std.smart.edu.tr", SchoolNumber="23002745", PasswordHash = passHash, Role = UserRole.Student },
