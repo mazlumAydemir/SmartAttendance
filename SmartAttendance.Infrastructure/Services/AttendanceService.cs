@@ -34,7 +34,6 @@ namespace SmartAttendance.Infrastructure.Services
         }
 
         // ... (Diğer kısımlar aynı)
-
         // ==================================================================================
         // 1. HOCA: OTURUM BAŞLATMA (OTOMATİK SINIF KONUMU İLE)
         // ==================================================================================
@@ -148,119 +147,102 @@ namespace SmartAttendance.Infrastructure.Services
                 QrCodeContent = sessionCode
             };
         }
+        /// <summary>
+        /// ==================================
+        /// QR KOD
+        /// ========================
 
-        // ==================================================================================
-        // 2. ÖĞRENCİ: QR İLE KATILMA (GÜVENLİ ZAMAN KONTROLÜ İLE)
-        // ==================================================================================
         public async Task<JoinSessionResponseDto> JoinSessionAsync(JoinSessionDto model, int studentId)
         {
+            Console.WriteLine("========================================");
+            Console.WriteLine("[QR JOIN] Yeni istek geldi.");
+            Console.WriteLine($"[QR JOIN] StudentId: {studentId}");
+            Console.WriteLine($"[QR JOIN] SessionId: {model.SessionId}");
+            Console.WriteLine($"[QR JOIN] QrContent: {model.QrContent}");
+
             // --- 1. QR KOD FORMAT KONTROLÜ ---
             if (string.IsNullOrWhiteSpace(model.QrContent))
-                throw new Exception("QR Kod verisi boş! Lütfen kodu tekrar okutun.");
+                throw new Exception("QR Kod verisi boş!");
 
             var parts = model.QrContent.Split("||");
             if (parts.Length != 2)
-                throw new Exception("Geçersiz QR Kod formatı! Lütfen kodu tekrar okutun.");
+                throw new Exception("Geçersiz QR Kod formatı!");
 
             string qrSessionCode = parts[0]?.Trim();
-            string ticksPart = parts[1]?.Trim();
+            string timestampPart = parts[1]?.Trim();
 
-            if (string.IsNullOrEmpty(qrSessionCode) || string.IsNullOrEmpty(ticksPart))
-                throw new Exception("QR Kod verisi eksik! Lütfen kodu tekrar okutun.");
+            // ⭐ DÜZELTME: Artık .NET ticks değil, UTC epoch MİLİSANİYE bekliyoruz.
+            // Frontend Date.now() gönderiyor (overflow yok). Bu sayede zaman kontrolü güvenilir.
+            if (!long.TryParse(timestampPart, out long generatedEpochMs))
+                throw new Exception("QR Kod verisi bozuk!");
 
-            if (!long.TryParse(ticksPart, out long generatedTicks))
-                throw new Exception("QR Kod verisi bozuk! Lütfen kodu tekrar okutun.");
-
-            // --- 2. QR SÜRE KONTROLÜ (KESİN ZAMAN HESABI) ---
-            // Frontend UTC ticks gönderiyor, biz de UTC ile karşılaştırıyoruz.
-            DateTime qrGeneratedUtc;
-            try
-            {
-                qrGeneratedUtc = new DateTime(generatedTicks, DateTimeKind.Utc);
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                throw new Exception("QR Kod zaman bilgisi geçersiz! Lütfen kodu tekrar okutun.");
-            }
-
+            // --- 2. ZAMAN KONTROLÜ ---
+            DateTime qrGeneratedUtc = DateTimeOffset.FromUnixTimeMilliseconds(generatedEpochMs).UtcDateTime;
             DateTime nowUtc = DateTime.UtcNow;
             double elapsedSeconds = (nowUtc - qrGeneratedUtc).TotalSeconds;
 
-            // Konsola yazdır (debug için)
-            Console.WriteLine($"[QR GÜVENLİK] QR Üretim (UTC): {qrGeneratedUtc:HH:mm:ss.fff}");
-            Console.WriteLine($"[QR GÜVENLİK] Sunucu Anı (UTC): {nowUtc:HH:mm:ss.fff}");
+            Console.WriteLine($"[QR GÜVENLİK] QR Üretim (UTC): {qrGeneratedUtc:yyyy-MM-dd HH:mm:ss.fff}");
+            Console.WriteLine($"[QR GÜVENLİK] Sunucu Anı (UTC): {nowUtc:yyyy-MM-dd HH:mm:ss.fff}");
             Console.WriteLine($"[QR GÜVENLİK] Geçen Süre: {elapsedSeconds:0.000} saniye");
 
-            // 🔥 ESNEK AMA GÜVENLİ KONTROL 🔥
-            // Frontend her 12 saniyede yenileniyor. Network gecikmesi + saat farkı için 
-            // toplam 15 saniyeye kadar tolerans, ama 15'i aşarsa kesin red.
-            const double MAX_AGE_SECONDS = 15.0;       // Eski kod toleransı (12 + 3 sn network/saat farkı)
-            const double MAX_FUTURE_SECONDS = 30.0;    // Cihaz saati ileriyse tolerans
+            const double MAX_AGE = 13.0;      // QR 12 saniyede yenileniyor, 1 sn buffer
+            const double MAX_FUTURE = 5.0;    // Saat ileri toleransı
 
-            if (elapsedSeconds > MAX_AGE_SECONDS)
+            if (elapsedSeconds > MAX_AGE)
             {
-                throw new Exception(
-                    $"QR Kod süresi doldu! (Kod {elapsedSeconds:0.0} saniye eski.) " +
-                    $"Lütfen ekrandaki güncel QR kodu okutun."
-                );
+                Console.WriteLine($"[QR RED] Kod çok eski: {elapsedSeconds:0.0} sn > {MAX_AGE} sn");
+                throw new Exception($"QR Kod süresi doldu! (Kod {elapsedSeconds:0.0} saniye eski.) Güncel kodu okutun.");
             }
 
-            if (elapsedSeconds < -MAX_FUTURE_SECONDS)
+            if (elapsedSeconds < -MAX_FUTURE)
             {
-                throw new Exception(
-                    $"Cihaz saatiniz sunucudan {Math.Abs(elapsedSeconds):0.0} saniye ileride! " +
-                    $"Lütfen telefonunuzun otomatik saat ayarını açın."
-                );
+                Console.WriteLine($"[QR RED] Kod gelecekten: {elapsedSeconds:0.0} sn");
+                throw new Exception($"Cihaz saatiniz {Math.Abs(elapsedSeconds):0.0} saniye ileride! Otomatik saat ayarını açın.");
             }
 
-            // --- 3. OTURUMU VE DERSİ BUL ---
+            Console.WriteLine($"[QR OK] Zaman kontrolü geçti.");
+
+            // --- 3. OTURUMU BUL ---
             var session = await _context.AttendanceSessions
                 .Include(s => s.RelatedCourses)
                 .FirstOrDefaultAsync(s => s.Id == model.SessionId);
 
-            if (session == null)
-                throw new Exception("Oturum bulunamadı.");
+            if (session == null) throw new Exception("Oturum bulunamadı.");
+            if (!session.IsActive) throw new Exception("Bu yoklama kapatılmış.");
 
-            if (!session.IsActive)
-                throw new Exception("Bu yoklama oturumu hoca tarafından kapatılmış.");
-
-            // --- 4. QR KOD EŞLEŞMESİ (Yanlış ders QR'ı engelle) ---
+            // --- 4. QR KOD EŞLEŞMESİ ---
             if (!string.Equals(session.SessionCode, qrSessionCode, StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Yanlış dersin QR kodunu okuttunuz! Kodlar eşleşmiyor.");
+                throw new Exception("Yanlış dersin QR kodunu okuttunuz!");
 
             // --- 5. YÖNTEM KONTROLÜ ---
-          
+            if (session.Method != AttendanceMethod.QrCode)
+                throw new Exception("Bu ders QR yöntemiyle açılmamış!");
 
-            // --- 6. ÖĞRENCİYİ VE DERS KAYDINI GETİR ---
+            // --- 6. ÖĞRENCİ ---
             var student = await _context.Users
                 .Include(u => u.Enrollments)
                 .FirstOrDefaultAsync(u => u.Id == studentId);
 
-            if (student == null)
-                throw new Exception("Öğrenci bulunamadı.");
+            if (student == null) throw new Exception("Öğrenci bulunamadı.");
 
             var sessionCourseIds = session.RelatedCourses.Select(rc => rc.CourseId).ToList();
             var studentCourseIds = student.Enrollments.Select(e => e.CourseId).ToList();
 
             if (!sessionCourseIds.Intersect(studentCourseIds).Any())
-                throw new Exception("Bu dersi almıyorsunuz, yoklamaya katılamazsınız.");
+                throw new Exception("Bu dersi almıyorsunuz.");
 
-            // --- 7. MÜKERRER KAYIT KONTROLÜ (En başa alındı - gereksiz işlem yapmayalım) ---
+            // --- 7. MÜKERRER ---
             bool alreadyJoined = await _context.AttendanceRecords
                 .AnyAsync(r => r.AttendanceSessionId == session.Id && r.StudentId == studentId);
 
             if (alreadyJoined)
-                return new JoinSessionResponseDto
-                {
-                    IsSuccess = true,
-                    Message = "Zaten yoklamadasınız."
-                };
+                return new JoinSessionResponseDto { IsSuccess = true, Message = "Zaten yoklamadasınız." };
 
-            // --- 8. CİHAZ ID KONTROLÜ (Kopya engelleme) ---
+            // --- 8. CİHAZ ---
             if (session.RequireDeviceVerification)
             {
                 if (string.IsNullOrWhiteSpace(model.DeviceId))
-                    throw new Exception("Cihaz bilgisi alınamadı! Lütfen sayfayı yenileyip tekrar deneyin.");
+                    throw new Exception("Cihaz bilgisi alınamadı!");
 
                 var deviceUsedByOther = await _context.AttendanceRecords
                     .AnyAsync(r => r.AttendanceSessionId == session.Id &&
@@ -268,15 +250,15 @@ namespace SmartAttendance.Infrastructure.Services
                                    r.StudentId != studentId);
 
                 if (deviceUsedByOther)
-                    throw new Exception("Dikkat! Bu cihaz ile başka bir arkadaşınız yoklama vermiş. Kopya girişimi engellendi.");
+                    throw new Exception("Bu cihaz başka biri tarafından kullanılmış!");
             }
 
-            // --- 9. KONUM KONTROLÜ (GPS) ---
+            // --- 9. KONUM ---
             double calculatedDistance = 0;
             if (session.RequireLocationVerification)
             {
                 if (model.Latitude == 0 || model.Longitude == 0)
-                    throw new Exception("Konum verisi alınamadı. Lütfen telefonunuzun GPS özelliğini açıp sayfayı yenileyin.");
+                    throw new Exception("Konum verisi alınamadı! GPS'i açın.");
 
                 calculatedDistance = CalculateDistance(
                     session.SnapshotLatitude ?? 0,
@@ -286,16 +268,11 @@ namespace SmartAttendance.Infrastructure.Services
                 );
 
                 double limit = session.SnapshotRadius ?? 50;
-
                 if (calculatedDistance > limit)
-                {
-                    throw new Exception(
-                        $"Sınıftan çok uzaktasınız! Tespit edilen mesafe: {calculatedDistance:0.0} metre. (İzin verilen: {limit}m)"
-                    );
-                }
+                    throw new Exception($"Sınıftan uzaktasınız! Mesafe: {calculatedDistance:0.0}m (Sınır: {limit}m)");
             }
 
-            // --- 10. KAYIT OLUŞTUR ---
+            // --- 10. KAYIT ---
             var record = new AttendanceRecord
             {
                 AttendanceSessionId = session.Id,
@@ -312,7 +289,8 @@ namespace SmartAttendance.Infrastructure.Services
             _context.AttendanceRecords.Add(record);
             await _context.SaveChangesAsync();
 
-            // --- 11. SIGNALR CANLI BİLDİRİM ---
+            Console.WriteLine($"[QR OK] {studentId} ID'li öğrenci kaydedildi.");
+
             try
             {
                 await _hubContext.Clients.Group(session.Id.ToString()).SendAsync("StudentAttended", new
@@ -320,7 +298,6 @@ namespace SmartAttendance.Infrastructure.Services
                     StudentId = studentId,
                     Status = "Present"
                 });
-                Console.WriteLine($"[SignalR] {studentId} ID'li öğrenci {session.Id} oturumuna katıldı.");
             }
             catch (Exception ex)
             {
@@ -381,7 +358,7 @@ namespace SmartAttendance.Infrastructure.Services
             // 5. KAYIT
             return await RegisterAttendance(session.Id, studentId, model.DeviceId);
         }
-       
+
         // ==================================================================================
         // 5. HOCA: OTURUM YÖNETİMİ
         // ==================================================================================
@@ -955,7 +932,7 @@ namespace SmartAttendance.Infrastructure.Services
 
                     // --- DÜZELTME BURADA ---
                     // Nesnenin tamamını değil, Ad ve Soyadı birleştirip string olarak veriyoruz.
-                    InstructorName = ce.Course.Instructor.FullName 
+                    InstructorName = ce.Course.Instructor.FullName
                 })
                 .ToListAsync();
 
