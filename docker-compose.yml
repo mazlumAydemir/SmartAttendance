@@ -4,7 +4,7 @@ services:
   smart_api:
     build: 
       context: .
-      dockerfile: SmartAttendance.WebApi/Dockerfile # Dockerfile'ının tam yolunu buraya yaz
+      dockerfile: Dockerfile # Dockerfile'ının tam yolunu buraya yaz
     container_name: smart_api
     ports:
       - "7221:8080" # Bu API 7221 portundan çalışacak

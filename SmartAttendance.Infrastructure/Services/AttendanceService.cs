@@ -151,7 +151,6 @@ namespace SmartAttendance.Infrastructure.Services
         /// ==================================
         /// QR KOD
         /// ========================
-
         public async Task<JoinSessionResponseDto> JoinSessionAsync(JoinSessionDto model, int studentId)
         {
             Console.WriteLine("========================================");
@@ -171,22 +170,23 @@ namespace SmartAttendance.Infrastructure.Services
             string qrSessionCode = parts[0]?.Trim();
             string timestampPart = parts[1]?.Trim();
 
-            // ⭐ DÜZELTME: Artık .NET ticks değil, UTC epoch MİLİSANİYE bekliyoruz.
-            // Frontend Date.now() gönderiyor (overflow yok). Bu sayede zaman kontrolü güvenilir.
+            // ⭐ Frontend Date.now() gönderiyor => UTC epoch MİLİSANİYE (overflow yok).
             if (!long.TryParse(timestampPart, out long generatedEpochMs))
                 throw new Exception("QR Kod verisi bozuk!");
 
             // --- 2. ZAMAN KONTROLÜ ---
-            DateTime qrGeneratedUtc = DateTimeOffset.FromUnixTimeMilliseconds(generatedEpochMs).UtcDateTime;
-            DateTime nowUtc = DateTime.UtcNow;
-            double elapsedSeconds = (nowUtc - qrGeneratedUtc).TotalSeconds;
+            // ⭐ DateTimeOffset kullanıyoruz: sunucunun saat dilimi ayarından TAMAMEN bağımsız,
+            // her zaman mutlak UTC verir. DateTime.UtcNow bazı sunucu yapılandırmalarında 1 saat kayabilir.
+            DateTimeOffset qrGenerated = DateTimeOffset.FromUnixTimeMilliseconds(generatedEpochMs);
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            double elapsedSeconds = (now - qrGenerated).TotalSeconds;
 
-            Console.WriteLine($"[QR GÜVENLİK] QR Üretim (UTC): {qrGeneratedUtc:yyyy-MM-dd HH:mm:ss.fff}");
-            Console.WriteLine($"[QR GÜVENLİK] Sunucu Anı (UTC): {nowUtc:yyyy-MM-dd HH:mm:ss.fff}");
+            Console.WriteLine($"[QR GÜVENLİK] QR Üretim (UTC): {qrGenerated.UtcDateTime:yyyy-MM-dd HH:mm:ss.fff}");
+            Console.WriteLine($"[QR GÜVENLİK] Sunucu Anı (UTC): {now.UtcDateTime:yyyy-MM-dd HH:mm:ss.fff}");
             Console.WriteLine($"[QR GÜVENLİK] Geçen Süre: {elapsedSeconds:0.000} saniye");
 
             const double MAX_AGE = 13.0;      // QR 12 saniyede yenileniyor, 1 sn buffer
-            const double MAX_FUTURE = 5.0;    // Saat ileri toleransı
+            const double MAX_FUTURE = 60.0;    // Saat ileri toleransı
 
             if (elapsedSeconds > MAX_AGE)
             {
@@ -310,6 +310,7 @@ namespace SmartAttendance.Infrastructure.Services
                 Message = "Yoklamaya Başarıyla Katıldınız!"
             };
         }
+
         // ==================================================================================
         // 3. ÖĞRENCİ: KONUM İLE KATILMA (ID İLE + METHOD CHECK)
         // ==================================================================================

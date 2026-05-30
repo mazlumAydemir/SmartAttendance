@@ -70,6 +70,7 @@ namespace SmartAttendance.WebAPI.Controllers
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> JoinSession([FromBody] JoinSessionDto model)
         {
+            Console.WriteLine(">>>>>>>>>> JOIN-QR ENDPOINT TETİKLENDİ <<<<<<<<<<");
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
 
