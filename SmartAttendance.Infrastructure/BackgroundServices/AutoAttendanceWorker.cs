@@ -15,6 +15,10 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
     {
         private readonly IServiceProvider _serviceProvider;
 
+        // ⭐ TEST İÇİN: Worker'ı sık çalıştırıyoruz ki gecikme yaşamayasın.
+        // Canlıya alırken bunu TimeSpan.FromMinutes(1) yapabilirsin.
+        private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(20);
+
         public AutoAttendanceWorker(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
@@ -22,11 +26,12 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            Console.WriteLine($"[WORKER] AutoAttendanceWorker başlatıldı. Kontrol aralığı: {CheckInterval.TotalSeconds} sn");
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    // Her turda (dakikada bir) veritabanı bağlantısı açıyoruz
                     using (var scope = _serviceProvider.CreateScope())
                     {
                         var context = scope.ServiceProvider.GetRequiredService<SmartAttendanceDbContext>();
@@ -34,27 +39,31 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                         // 1. GÖREV: BAŞLAMASI GEREKENLERİ BAŞLAT
                         await CheckAndStartSessions(context);
 
-                        // 2. GÖREV: SÜRESİ DOLANLARI KAPAT (YENİ EKLENDİ)
+                        // 2. GÖREV: SÜRESİ DOLANLARI KAPAT
                         await CheckAndStopSessions(context);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"AutoAttendance Worker Hatası: {ex.Message}");
+                    Console.WriteLine($"[WORKER HATA] {ex.Message}");
+                    if (ex.InnerException != null)
+                        Console.WriteLine($"[WORKER HATA-INNER] {ex.InnerException.Message}");
                 }
 
-                // 1 Dakika bekle
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await Task.Delay(CheckInterval, stoppingToken);
             }
         }
 
-        // --- GÖREV 1: OTOMATİK BAŞLATMA ---
         // --- GÖREV 1: OTOMATİK BAŞLATMA ---
         private async Task CheckAndStartSessions(SmartAttendanceDbContext context)
         {
             var now = DateTime.Now;
             var today = now.DayOfWeek;
             var currentTime = now.TimeOfDay;
+
+            // 🔍 TEŞHİS LOGU: Worker'ın gördüğü zamanı yazdırıyoruz.
+            // Bu satır, "DateTime.Now" senin gerçek duvar saatinle aynı mı diye kontrol etmeni sağlar.
+            Console.WriteLine($"[WORKER] Kontrol -> Tarih/Saat: {now:yyyy-MM-dd HH:mm:ss} | Gün: {today}");
 
             // Zamanı gelmiş, otomatiği açık dersleri bul
             var activeSchedules = await context.CourseSchedules
@@ -66,20 +75,42 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                             && currentTime <= s.EndTime)
                 .ToListAsync();
 
+            Console.WriteLine($"[WORKER] Şu an zamanı gelmiş ve otomatiği açık ders sayısı: {activeSchedules.Count}");
+
             foreach (var schedule in activeSchedules)
             {
-                // DÜZELTME: Günde 1 kuralı yerine "Şu an zaten açık bir oturumu var mı?" kontrolü yapıyoruz.
-                // Eğer son 50 dakika içinde bu derse ait bir oturum açıldıysa veya hala aktifse yenisini açma.
+                // "Şu an zaten açık bir oturumu var mı?" kontrolü.
+                // Eğer hala aktif bir oturum varsa veya bu ders programı slotu içinde
+                // (StartTime'dan sonra) açılmış bir oturum varsa yenisini açma.
+                // NOT: Sabit 50 dk yerine, bu dersin BUGÜNKÜ bu slotu için oturum var mı diye bakıyoruz.
                 bool sessionExists = await context.AttendanceSessions
                     .Include(s => s.RelatedCourses)
                     .AnyAsync(s => s.RelatedCourses.Any(rc => rc.CourseId == schedule.CourseId)
-                                   && (s.IsActive == true || s.StartTime >= now.AddMinutes(-50)));
+                                   && s.IsActive == true);
 
-                if (sessionExists) continue; // Zaten varsa atla
+                if (sessionExists)
+                {
+                    Console.WriteLine($"[WORKER] {schedule.Course.CourseCode} için zaten AKTİF oturum var, atlanıyor.");
+                    continue;
+                }
+
+                // Bu slot için bugün daha önce (ve kapatılmış) bir oturum açıldıysa tekrar açma.
+                // Slotun başlangıcından bu yana açılmış herhangi bir oturum varsa atla.
+                var slotStartToday = now.Date.Add(schedule.StartTime);
+                bool alreadyOpenedThisSlot = await context.AttendanceSessions
+                    .AnyAsync(s => s.RelatedCourses.Any(rc => rc.CourseId == schedule.CourseId)
+                                   && s.StartTime >= slotStartToday
+                                   && s.StartTime <= now);
+
+                if (alreadyOpenedThisSlot)
+                {
+                    Console.WriteLine($"[WORKER] {schedule.Course.CourseCode} bu slotta zaten açılmış (kapanmış olabilir), atlanıyor.");
+                    continue;
+                }
 
                 // Yoksa BAŞLAT
                 var settings = schedule.Course;
-                string sessionCode = Guid.NewGuid().ToString().Substring(0, 8).ToUpper(); // Ekrana daha güzel sığması için kısa kod yaptık
+                string sessionCode = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
 
                 var newSession = new AttendanceSession
                 {
@@ -87,7 +118,7 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                     InstructorId = settings.InstructorId,
                     StartTime = DateTime.Now,
                     IsActive = true,
-                    EndTime = DateTime.Now.AddMinutes(settings.DefaultDurationMinutes),
+                    EndTime = now.Date.Add(schedule.EndTime), // ⭐ Bitiş, ders programındaki bitiş saati olsun
                     Method = settings.DefaultMethod,
                     RequireFaceVerification = (settings.DefaultMethod == AttendanceMethod.CrowdScan),
                     RequireDeviceVerification = true,
@@ -107,16 +138,15 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                 });
                 await context.SaveChangesAsync();
 
-                Console.WriteLine($"[OTOMATİK BAŞLATILDI] {settings.CourseCode} - Süre: {settings.DefaultDurationMinutes} dk - ID: {newSession.Id}");
+                Console.WriteLine($"[OTOMATİK BAŞLATILDI] ✅ {settings.CourseCode} | Yöntem: {settings.DefaultMethod} | Bitiş: {newSession.EndTime:HH:mm} | ID: {newSession.Id}");
             }
         }
 
-        // --- GÖREV 2: OTOMATİK KAPATMA (YENİ) ---
+        // --- GÖREV 2: OTOMATİK KAPATMA ---
         private async Task CheckAndStopSessions(SmartAttendanceDbContext context)
         {
             var now = DateTime.Now;
 
-            // Açık olan (IsActive=true) VE Bitiş saati gelmiş/geçmiş (EndTime <= Now) oturumları bul
             var expiredSessions = await context.AttendanceSessions
                 .Where(s => s.IsActive && s.EndTime != null && s.EndTime <= now)
                 .ToListAsync();
@@ -125,8 +155,8 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
             {
                 foreach (var session in expiredSessions)
                 {
-                    session.IsActive = false; // KAPAT
-                    Console.WriteLine($"[OTOMATİK KAPATILDI] Oturum ID: {session.Id} - Planlanan Bitiş: {session.EndTime}");
+                    session.IsActive = false;
+                    Console.WriteLine($"[OTOMATİK KAPATILDI] ⛔ Oturum ID: {session.Id} | Planlanan Bitiş: {session.EndTime:HH:mm}");
                 }
 
                 await context.SaveChangesAsync();

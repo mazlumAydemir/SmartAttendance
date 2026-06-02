@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SmartAttendance.Domain.Entities;
 using SmartAttendance.Domain.Enums;
-using SmartAttendance.Application.Interfaces; // YENİ: Yapay Zeka Servisi için eklendi
+using SmartAttendance.Application.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,26 +12,24 @@ namespace SmartAttendance.Infrastructure.Persistence
 {
     public static class DataSeeder
     {
-        // YENİ: IFaceRecognitionService parametresi eklendi
         public static async Task SeedAsync(SmartAttendanceDbContext context, IFaceRecognitionService faceRecognitionService)
         {
             var passHash = BCrypt.Net.BCrypt.HashPassword("123456");
 
             // ==================================================================================
-            // ⭐ YENİ YAPAY ZEKA: FOTOĞRAFLARDAN 512 BOYUTLU VEKTÖR ÇIKARMA
+            // ⭐ YÜZ TANIMA: FOTOĞRAFLARDAN 512 BOYUTLU VEKTÖR ÇIKARMA
             // ==================================================================================
             string mazlumFaceVectorJson = null;
             string ibrahimFaceVectorJson = null;
             string erenFaceVectorJson = null;
-            // DOSYA YOLUNU GARANTİYE ALALIM:
-            // Uygulamanın ana dizinini bulur (wwwroot'un olduğu yer)
+
             string baseDir = AppContext.BaseDirectory.Split(new[] { "\\bin", "/bin" }, StringSplitOptions.None)[0];
 
             string mazlumPath = Path.Combine(baseDir, "wwwroot", "img", "mazlumAydemir.jpeg");
             string ibrahimPath = Path.Combine(baseDir, "wwwroot", "img", "ibrahim.jpeg");
             string erenPath = Path.Combine(baseDir, "wwwroot", "img", "eren.jpeg");
 
-            // MAZLUM TEST
+            // MAZLUM
             if (File.Exists(mazlumPath))
             {
                 var bytes = await File.ReadAllBytesAsync(mazlumPath);
@@ -40,40 +38,37 @@ namespace SmartAttendance.Infrastructure.Persistence
             }
             else { Console.WriteLine($"❌ HATA: Mazlum dosyası bulunamadı! Aranan yol: {mazlumPath}"); }
 
-            // eren TEST
-            if (File.Exists(mazlumPath))
+            // EREN  (⚠️ DÜZELTME: eskiden burada yanlışlıkla mazlumPath kontrol ediliyordu)
+            if (File.Exists(erenPath))
             {
                 var bytes = await File.ReadAllBytesAsync(erenPath);
                 erenFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
                 if (erenFaceVectorJson == null) Console.WriteLine("❌ HATA: Eren'in yüzü analiz edilemedi!");
             }
-            else { Console.WriteLine($"❌ HATA: eren dosyası bulunamadı! Aranan yol: {mazlumPath}"); }
-            // İBRAHİM TEST
+            else { Console.WriteLine($"❌ HATA: eren dosyası bulunamadı! Aranan yol: {erenPath}"); }
+
+            // İBRAHİM
             if (File.Exists(ibrahimPath))
             {
                 var bytes = await File.ReadAllBytesAsync(ibrahimPath);
                 ibrahimFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
-                if (ibrahimFaceVectorJson == null) Console.WriteLine("❌ HATA: Ibrahim'un yüzü analiz edilemedi!");
+                if (ibrahimFaceVectorJson == null) Console.WriteLine("❌ HATA: Ibrahim'in yüzü analiz edilemedi!");
             }
             else { Console.WriteLine($"❌ HATA: Ibrahim dosyası bulunamadı! Aranan yol: {ibrahimPath}"); }
 
             // ==================================================================================
-            // 1. KULLANICILAR (Eğer boşsa ekler)
+            // 1. KULLANICILAR
             // ==================================================================================
             if (!await context.Users.AnyAsync())
             {
                 var users = new List<User>
                 {
-                    // Admin
                     new User { FullName = "Sistem Admin", Email = "admin@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Admin },
-                    
-                    // Hocalar
+
                     new User { FullName = "Mehmet Demir", Email = "mehmet@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
                     new User { FullName = "Ahmet Özseven", Email = "ahmet.ozseven@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
                     new User { FullName = "Elif Bozkurt", Email = "elif.bozkurt@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
 
-                    // Öğrenciler (Yüz verileri ve Profil URL'leri ile)
-                    // 🔥 Yeni ArcFace vektörleri buraya yazılıyor
                     new User { FullName = "Mazlum Aydemir", Email = "mazlum@std.smart.edu.tr", SchoolNumber="23002741", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = mazlumFaceVectorJson, ProfilePictureUrl = "/img/mazlumAydemir.jpeg" },
                     new User { FullName = "ibrahim filoğlu", Email = "ibrahim@std.smart.edu.tr", SchoolNumber="23002742", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = ibrahimFaceVectorJson, ProfilePictureUrl = "/img/ibrahim.jpeg" },
                     new User { FullName = "Eren Sakallı", Email = "eren@std.smart.edu.tr", SchoolNumber="23002752", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = erenFaceVectorJson, ProfilePictureUrl = "/img/eren.jpeg" },
@@ -108,7 +103,9 @@ namespace SmartAttendance.Infrastructure.Persistence
             }
 
             // ==================================================================================
-            // 3. DERSLER 
+            // 3. DERSLER
+            //    ⭐ TEST: Otomatik yoklamayı görmek için bazı dersleri IsAutoAttendanceEnabled=true yapıyoruz.
+            //    Worker SADECE bu alanı true olan dersleri otomatik açar.
             // ==================================================================================
             if (!await context.Courses.AnyAsync())
             {
@@ -118,20 +115,23 @@ namespace SmartAttendance.Infrastructure.Persistence
 
                 var courses = new List<Course>
                 {
-                    new Course { CourseCode = "CMPE428", CourseName = "Software Engineering", InstructorId = yiltan.Id },
-                    new Course { CourseCode = "CMPE419", CourseName = "Mobile App Dev (EN)", InstructorId = yiltan.Id },
-                    new Course { CourseCode = "BLGM419", CourseName = "Mobil Uygulama (TR)", InstructorId = yiltan.Id },
-                    new Course { CourseCode = "BLGM371", CourseName = "Veritabanı Sistemleri", InstructorId = ahmet.Id },
-                    new Course { CourseCode = "CMPE129", CourseName = "Intro. to Programming", InstructorId = ahmet.Id },
-                    new Course { CourseCode = "BLGM353", CourseName = "İşletim Sistemleri", InstructorId = elif.Id },
-                    new Course { CourseCode = "EKON111", CourseName = "Ekonomiye Giriş", InstructorId = elif.Id }
+                    // Bu 3 ders otomatik AÇIK -> testlerde bunları izle
+                    new Course { CourseCode = "CMPE428", CourseName = "Software Engineering", InstructorId = yiltan.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "CMPE419", CourseName = "Mobile App Dev (EN)", InstructorId = yiltan.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.Location, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "BLGM419", CourseName = "Mobil Uygulama (TR)", InstructorId = yiltan.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+
+                    // Bu dersler otomatik KAPALI -> manuel test için
+                    new Course { CourseCode = "BLGM371", CourseName = "Veritabanı Sistemleri", InstructorId = ahmet.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "CMPE129", CourseName = "Intro. to Programming", InstructorId = ahmet.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "BLGM353", CourseName = "İşletim Sistemleri", InstructorId = elif.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "EKON111", CourseName = "Ekonomiye Giriş", InstructorId = elif.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 }
                 };
                 await context.Courses.AddRangeAsync(courses);
                 await context.SaveChangesAsync();
             }
 
             // ==================================================================================
-            // 4. DERS KAYITLARI 
+            // 4. DERS KAYITLARI
             // ==================================================================================
             if (!await context.CourseEnrollments.AnyAsync())
             {
@@ -166,7 +166,9 @@ namespace SmartAttendance.Infrastructure.Persistence
             }
 
             // ==================================================================================
-            // 5. DERS PROGRAMI (ESKİLERİ TEMİZLER, GÜNCEL/GECE SAATLERİNİ YAZAR)
+            // 5. DERS PROGRAMI  ⭐ TEST DOSTU: ŞU ANKİ SAATE GÖRE DİNAMİK YERLEŞTİRME
+            //    Her başlatmada eski programı silip yeniden kuruyoruz.
+            //    Otomatik dersleri "şu an" çevresine koyuyoruz ki worker hemen açsın.
             // ==================================================================================
             var oldSchedules = await context.CourseSchedules.ToListAsync();
             if (oldSchedules.Any())
@@ -178,32 +180,62 @@ namespace SmartAttendance.Infrastructure.Persistence
             var cList = await context.Courses.ToListAsync();
             var lList = await context.ClassLocations.ToListAsync();
 
+            var now = DateTime.Now;
+            var today = now.DayOfWeek;
+
+            // Yardımcı: saati gün sınırları içinde tutar (00:00 - 23:59 taşmasın)
+            TimeSpan Clamp(TimeSpan t)
+            {
+                if (t < TimeSpan.Zero) return TimeSpan.Zero;
+                if (t > new TimeSpan(23, 59, 0)) return new TimeSpan(23, 59, 0);
+                return t;
+            }
+
             var schedules = new List<CourseSchedule>();
 
-            var timeSlots = new List<(TimeSpan Start, TimeSpan End)>
+            // --- A) OTOMATİK DERSLER: ŞU AN AKTİF OLACAK ŞEKİLDE BUGÜNE KOYULUYOR ---
+            // CMPE428: 1 dk önce başladı, 49 dk sonra bitecek  -> worker AÇMALI (hemen)
+            // CMPE419: 2 dk önce başladı                       -> worker AÇMALI (hemen)
+            // BLGM419: 5 dk SONRA başlayacak                   -> worker biraz bekleyip açmalı
+            void AddSlot(string courseCode, TimeSpan start, TimeSpan end, int locIndex)
             {
-                (new TimeSpan(8, 30, 0), new TimeSpan(9, 20, 0)),
-                (new TimeSpan(9, 30, 0), new TimeSpan(10, 20, 0)),
-                (new TimeSpan(10, 30, 0), new TimeSpan(11, 20, 0)),
-                (new TimeSpan(11, 30, 0), new TimeSpan(12, 20, 0)),
-                (new TimeSpan(13, 30, 0), new TimeSpan(14, 20, 0)),
-                (new TimeSpan(14, 30, 0), new TimeSpan(15, 20, 0)),
-                (new TimeSpan(15, 30, 0), new TimeSpan(16, 20, 0)),
-                (new TimeSpan(16, 30, 0), new TimeSpan(17, 20, 0)),
-                (new TimeSpan(17, 30, 0), new TimeSpan(18, 20, 0)),
-                (new TimeSpan(18, 30, 0), new TimeSpan(19, 20, 0)),
-                (new TimeSpan(19, 30, 0), new TimeSpan(20, 20, 0)),
-                (new TimeSpan(20, 30, 0), new TimeSpan(21, 20, 0)),
-                (new TimeSpan(21, 30, 0), new TimeSpan(22, 20, 0)),
-                (new TimeSpan(22, 30, 0), new TimeSpan(23, 20, 0))
+                var course = cList.First(c => c.CourseCode == courseCode);
+                var loc = lList[locIndex % lList.Count];
+                schedules.Add(new CourseSchedule
+                {
+                    CourseId = course.Id,
+                    ClassLocationId = loc.Id,
+                    DayOfWeek = today,
+                    StartTime = Clamp(now.TimeOfDay.Add(start)),
+                    EndTime = Clamp(now.TimeOfDay.Add(end))
+                });
+            }
+
+            // start/end değerleri "şu ana göre dakika" cinsinden (negatif = geçmiş, pozitif = gelecek)
+            AddSlot("CMPE428", TimeSpan.FromMinutes(-1), TimeSpan.FromMinutes(10), 0); // ŞU AN aktif (hemen açılmalı)
+            AddSlot("CMPE419", TimeSpan.FromMinutes(-2), TimeSpan.FromMinutes(8), 1);  // ŞU AN aktif (hemen açılmalı)
+            AddSlot("BLGM419", TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(13), 2);  // 3 dk sonra açılacak
+
+            // --- B) ESKİ TARZ TÜM GÜN/ TÜM HAFTA PROGRAMI (manuel görünüm için, otomatik kapalı dersler) ---
+            // Bunlar IsAutoAttendanceEnabled=false olduğu için worker bunları AÇMAZ,
+            // sadece ders programı dolu görünsün diye duruyor.
+            var fixedSlots = new List<(TimeSpan Start, TimeSpan End)>
+            {
+                (new TimeSpan(8,30,0),  new TimeSpan(9,20,0)),
+                (new TimeSpan(9,30,0),  new TimeSpan(10,20,0)),
+                (new TimeSpan(10,30,0), new TimeSpan(11,20,0)),
+                (new TimeSpan(11,30,0), new TimeSpan(12,20,0)),
+                (new TimeSpan(13,30,0), new TimeSpan(14,20,0)),
+                (new TimeSpan(14,30,0), new TimeSpan(15,20,0))
             };
 
+            var manualCourses = cList.Where(c => !c.IsAutoAttendanceEnabled).ToList();
             foreach (DayOfWeek day in Enum.GetValues(typeof(DayOfWeek)))
             {
-                for (int i = 0; i < timeSlots.Count; i++)
+                for (int i = 0; i < fixedSlots.Count && manualCourses.Count > 0; i++)
                 {
-                    var slot = timeSlots[i];
-                    var course = cList[i % cList.Count];
+                    var slot = fixedSlots[i];
+                    var course = manualCourses[i % manualCourses.Count];
                     var location = lList[i % lList.Count];
 
                     schedules.Add(new CourseSchedule
@@ -214,24 +246,20 @@ namespace SmartAttendance.Infrastructure.Persistence
                         StartTime = slot.Start,
                         EndTime = slot.End
                     });
-
-                    if (course.CourseCode == "CMPE419")
-                    {
-                        var blgm419 = cList.First(x => x.CourseCode == "BLGM419");
-                        schedules.Add(new CourseSchedule
-                        {
-                            CourseId = blgm419.Id,
-                            ClassLocationId = location.Id,
-                            DayOfWeek = day,
-                            StartTime = slot.Start,
-                            EndTime = slot.End
-                        });
-                    }
                 }
             }
 
             await context.CourseSchedules.AddRangeAsync(schedules);
             await context.SaveChangesAsync();
+
+            // 🔍 TEST BİLGİSİ
+            Console.WriteLine("==================================================");
+            Console.WriteLine($"[SEEDER] Şu an: {now:yyyy-MM-dd HH:mm:ss} ({today})");
+            Console.WriteLine($"[SEEDER] Otomatik test dersleri bugüne yerleştirildi:");
+            Console.WriteLine($"[SEEDER]   CMPE428 (QR)       -> {Clamp(now.TimeOfDay.Add(TimeSpan.FromMinutes(-1))):hh\\:mm} - şu an AKTİF, worker hemen açmalı");
+            Console.WriteLine($"[SEEDER]   CMPE419 (Konum)    -> {Clamp(now.TimeOfDay.Add(TimeSpan.FromMinutes(-2))):hh\\:mm} - şu an AKTİF, worker hemen açmalı");
+            Console.WriteLine($"[SEEDER]   BLGM419 (QR)       -> {Clamp(now.TimeOfDay.Add(TimeSpan.FromMinutes(3))):hh\\:mm} - 3 dk sonra açılmalı");
+            Console.WriteLine("==================================================");
         }
     }
 }
