@@ -17,7 +17,7 @@ namespace SmartAttendance.Infrastructure.Persistence
             var passHash = BCrypt.Net.BCrypt.HashPassword("123456");
 
             // ==================================================================================
-            // ⭐ YÜZ TANIMA: FOTOĞRAFLARDAN 512 BOYUTLU VEKTÖR ÇIKARMA
+            // YUZ TANIMA: FOTOGRAFLARDAN 512 BOYUTLU VEKTOR CIKARMA
             // ==================================================================================
             string mazlumFaceVectorJson = null;
             string ibrahimFaceVectorJson = null;
@@ -29,32 +29,30 @@ namespace SmartAttendance.Infrastructure.Persistence
             string ibrahimPath = Path.Combine(baseDir, "wwwroot", "img", "ibrahim.jpeg");
             string erenPath = Path.Combine(baseDir, "wwwroot", "img", "eren.jpeg");
 
-            // MAZLUM
             if (File.Exists(mazlumPath))
             {
                 var bytes = await File.ReadAllBytesAsync(mazlumPath);
                 mazlumFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
-                if (mazlumFaceVectorJson == null) Console.WriteLine("❌ HATA: Mazlum'un yüzü analiz edilemedi!");
+                if (mazlumFaceVectorJson == null) Console.WriteLine("HATA: Mazlum'un yuzu analiz edilemedi!");
             }
-            else { Console.WriteLine($"❌ HATA: Mazlum dosyası bulunamadı! Aranan yol: {mazlumPath}"); }
+            else { Console.WriteLine($"HATA: Mazlum dosyasi bulunamadi! Aranan yol: {mazlumPath}"); }
 
-            // EREN  (⚠️ DÜZELTME: eskiden burada yanlışlıkla mazlumPath kontrol ediliyordu)
+            // DUZELTME: Eskiden burada yanlislikla mazlumPath kontrol ediliyordu, erenPath olmali.
             if (File.Exists(erenPath))
             {
                 var bytes = await File.ReadAllBytesAsync(erenPath);
                 erenFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
-                if (erenFaceVectorJson == null) Console.WriteLine("❌ HATA: Eren'in yüzü analiz edilemedi!");
+                if (erenFaceVectorJson == null) Console.WriteLine("HATA: Eren'in yuzu analiz edilemedi!");
             }
-            else { Console.WriteLine($"❌ HATA: eren dosyası bulunamadı! Aranan yol: {erenPath}"); }
+            else { Console.WriteLine($"HATA: eren dosyasi bulunamadi! Aranan yol: {erenPath}"); }
 
-            // İBRAHİM
             if (File.Exists(ibrahimPath))
             {
                 var bytes = await File.ReadAllBytesAsync(ibrahimPath);
                 ibrahimFaceVectorJson = await faceRecognitionService.GenerateFaceEncodingAsync(bytes);
-                if (ibrahimFaceVectorJson == null) Console.WriteLine("❌ HATA: Ibrahim'in yüzü analiz edilemedi!");
+                if (ibrahimFaceVectorJson == null) Console.WriteLine("HATA: Ibrahim'in yuzu analiz edilemedi!");
             }
-            else { Console.WriteLine($"❌ HATA: Ibrahim dosyası bulunamadı! Aranan yol: {ibrahimPath}"); }
+            else { Console.WriteLine($"HATA: Ibrahim dosyasi bulunamadi! Aranan yol: {ibrahimPath}"); }
 
             // ==================================================================================
             // 1. KULLANICILAR
@@ -66,18 +64,18 @@ namespace SmartAttendance.Infrastructure.Persistence
                     new User { FullName = "Sistem Admin", Email = "admin@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Admin },
 
                     new User { FullName = "Mehmet Demir", Email = "mehmet@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
-                    new User { FullName = "Ahmet Özseven", Email = "ahmet.ozseven@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
+                    new User { FullName = "Ahmet Ozseven", Email = "ahmet.ozseven@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
                     new User { FullName = "Elif Bozkurt", Email = "elif.bozkurt@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
 
                     new User { FullName = "Mazlum Aydemir", Email = "mazlum@std.smart.edu.tr", SchoolNumber="23002741", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = mazlumFaceVectorJson, ProfilePictureUrl = "/img/mazlumAydemir.jpeg" },
-                    new User { FullName = "ibrahim filoğlu", Email = "ibrahim@std.smart.edu.tr", SchoolNumber="23002742", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = ibrahimFaceVectorJson, ProfilePictureUrl = "/img/ibrahim.jpeg" },
-                    new User { FullName = "Eren Sakallı", Email = "eren@std.smart.edu.tr", SchoolNumber="23002752", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = erenFaceVectorJson, ProfilePictureUrl = "/img/eren.jpeg" },
-                    new User { FullName = "Ayşe Demir", Email = "ayse@std.smart.edu.tr", SchoolNumber="23002743", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Fatma Şahin", Email = "fatma@std.smart.edu.tr", SchoolNumber="23002744", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "ibrahim filoglu", Email = "ibrahim@std.smart.edu.tr", SchoolNumber="23002742", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = ibrahimFaceVectorJson, ProfilePictureUrl = "/img/ibrahim.jpeg" },
+                    new User { FullName = "Eren Sakalli", Email = "eren@std.smart.edu.tr", SchoolNumber="23002752", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = erenFaceVectorJson, ProfilePictureUrl = "/img/eren.jpeg" },
+                    new User { FullName = "Ayse Demir", Email = "ayse@std.smart.edu.tr", SchoolNumber="23002743", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Fatma Sahin", Email = "fatma@std.smart.edu.tr", SchoolNumber="23002744", PasswordHash = passHash, Role = UserRole.Student },
                     new User { FullName = "Mehmet Can", Email = "mehmet@std.smart.edu.tr", SchoolNumber="23002745", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Zeynep Çelik", Email = "zeynep@std.smart.edu.tr", SchoolNumber="23002746", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Zeynep Celik", Email = "zeynep@std.smart.edu.tr", SchoolNumber="23002746", PasswordHash = passHash, Role = UserRole.Student },
                     new User { FullName = "Burak Tekin", Email = "burak@std.smart.edu.tr", SchoolNumber="23002747", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Cemre Yıldız", Email = "cemre@std.smart.edu.tr", SchoolNumber="23002748", PasswordHash = passHash, Role = UserRole.Student }
+                    new User { FullName = "Cemre Yildiz", Email = "cemre@std.smart.edu.tr", SchoolNumber="23002748", PasswordHash = passHash, Role = UserRole.Student }
                 };
                 await context.Users.AddRangeAsync(users);
                 await context.SaveChangesAsync();
@@ -104,34 +102,31 @@ namespace SmartAttendance.Infrastructure.Persistence
 
             // ==================================================================================
             // 3. DERSLER
-            //    ⭐ TEST: Otomatik yoklamayı görmek için bazı dersleri IsAutoAttendanceEnabled=true yapıyoruz.
-            //    Worker SADECE bu alanı true olan dersleri otomatik açar.
+            //    Tum dersler IsAutoAttendanceEnabled = true => worker programdaki saatte acar.
+            //    DefaultDurationMinutes = 50 => oturum 50 dk sonra otomatik kapanir.
             // ==================================================================================
             if (!await context.Courses.AnyAsync())
             {
-                var yiltan = await context.Users.FirstAsync(u => u.Email == "mehmet@smart.edu.tr");
+                var mehmet = await context.Users.FirstAsync(u => u.Email == "mehmet@smart.edu.tr");
                 var ahmet = await context.Users.FirstAsync(u => u.Email == "ahmet.ozseven@smart.edu.tr");
                 var elif = await context.Users.FirstAsync(u => u.Email == "elif.bozkurt@smart.edu.tr");
 
                 var courses = new List<Course>
                 {
-                    // Bu 3 ders otomatik AÇIK -> testlerde bunları izle
-                    new Course { CourseCode = "CMPE428", CourseName = "Software Engineering", InstructorId = yiltan.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
-                    new Course { CourseCode = "CMPE419", CourseName = "Mobile App Dev (EN)", InstructorId = yiltan.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.Location, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
-                    new Course { CourseCode = "BLGM419", CourseName = "Mobil Uygulama (TR)", InstructorId = yiltan.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
-
-                    // Bu dersler otomatik KAPALI -> manuel test için
-                    new Course { CourseCode = "BLGM371", CourseName = "Veritabanı Sistemleri", InstructorId = ahmet.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
-                    new Course { CourseCode = "CMPE129", CourseName = "Intro. to Programming", InstructorId = ahmet.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
-                    new Course { CourseCode = "BLGM353", CourseName = "İşletim Sistemleri", InstructorId = elif.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
-                    new Course { CourseCode = "EKON111", CourseName = "Ekonomiye Giriş", InstructorId = elif.Id, IsAutoAttendanceEnabled = false, DefaultMethod = AttendanceMethod.QrCode, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 }
+                    new Course { CourseCode = "CMPE428", CourseName = "Software Engineering",   InstructorId = mehmet.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "CMPE419", CourseName = "Mobile App Dev (EN)",     InstructorId = mehmet.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.Location, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "BLGM419", CourseName = "Mobil Uygulama (TR)",     InstructorId = mehmet.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "BLGM371", CourseName = "Veritabani Sistemleri",   InstructorId = ahmet.Id,  IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "CMPE129", CourseName = "Intro. to Programming",   InstructorId = ahmet.Id,  IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "BLGM353", CourseName = "Isletim Sistemleri",      InstructorId = elif.Id,   IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "EKON111", CourseName = "Ekonomiye Giris",         InstructorId = elif.Id,   IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 }
                 };
                 await context.Courses.AddRangeAsync(courses);
                 await context.SaveChangesAsync();
             }
 
             // ==================================================================================
-            // 4. DERS KAYITLARI
+            // 4. DERS KAYITLARI (Her ogrenci her derse kayitli - test kolayligi icin)
             // ==================================================================================
             if (!await context.CourseEnrollments.AnyAsync())
             {
@@ -139,25 +134,11 @@ namespace SmartAttendance.Infrastructure.Persistence
                 var courses = await context.Courses.ToListAsync();
 
                 var enrollments = new List<CourseEnrollment>();
-
                 foreach (var student in students)
                 {
-                    enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = courses.First(c => c.CourseCode == "EKON111").Id });
-
-                    if (student.FullName.Length % 2 == 0)
+                    foreach (var course in courses)
                     {
-                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = courses.First(c => c.CourseCode == "CMPE419").Id });
-                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = courses.First(c => c.CourseCode == "CMPE428").Id });
-                    }
-                    else
-                    {
-                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = courses.First(c => c.CourseCode == "BLGM419").Id });
-                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = courses.First(c => c.CourseCode == "BLGM371").Id });
-                    }
-
-                    if (student.FullName.Contains("a") || student.FullName.Contains("e") || student.FullName.Contains("i"))
-                    {
-                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = courses.First(c => c.CourseCode == "BLGM353").Id });
+                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = course.Id });
                     }
                 }
 
@@ -166,9 +147,10 @@ namespace SmartAttendance.Infrastructure.Persistence
             }
 
             // ==================================================================================
-            // 5. DERS PROGRAMI  ⭐ TEST DOSTU: ŞU ANKİ SAATE GÖRE DİNAMİK YERLEŞTİRME
-            //    Her başlatmada eski programı silip yeniden kuruyoruz.
-            //    Otomatik dersleri "şu an" çevresine koyuyoruz ki worker hemen açsın.
+            // 5. DERS PROGRAMI  - GERCEKCI HAFTALIK PLAN
+            //    Kural: Her ders haftada EN AZ 4, EN FAZLA 6 slot (saat).
+            //    Sabit ve gercek saatler kullaniliyor. Worker bu saatlerde dersi acar.
+            //    NOT: Eski programi siler, yeniden kurar.
             // ==================================================================================
             var oldSchedules = await context.CourseSchedules.ToListAsync();
             if (oldSchedules.Any())
@@ -180,85 +162,102 @@ namespace SmartAttendance.Infrastructure.Persistence
             var cList = await context.Courses.ToListAsync();
             var lList = await context.ClassLocations.ToListAsync();
 
-            var now = DateTime.Now;
-            var today = now.DayOfWeek;
+            Course C(string code) => cList.First(x => x.CourseCode == code);
+            ClassLocation L(int i) => lList[i % lList.Count];
 
-            // Yardımcı: saati gün sınırları içinde tutar (00:00 - 23:59 taşmasın)
-            TimeSpan Clamp(TimeSpan t)
+            // Standart 50 dakikalik ders saatleri (gercek universite saatleri gibi)
+            var P = new Dictionary<int, (TimeSpan start, TimeSpan end)>
             {
-                if (t < TimeSpan.Zero) return TimeSpan.Zero;
-                if (t > new TimeSpan(23, 59, 0)) return new TimeSpan(23, 59, 0);
-                return t;
-            }
+                [1] = (new TimeSpan(8, 30, 0), new TimeSpan(9, 20, 0)),
+                [2] = (new TimeSpan(9, 30, 0), new TimeSpan(10, 20, 0)),
+                [3] = (new TimeSpan(10, 30, 0), new TimeSpan(11, 20, 0)),
+                [4] = (new TimeSpan(11, 30, 0), new TimeSpan(12, 20, 0)),
+                [5] = (new TimeSpan(13, 30, 0), new TimeSpan(14, 20, 0)),
+                [6] = (new TimeSpan(14, 30, 0), new TimeSpan(15, 20, 0)),
+                [7] = (new TimeSpan(15, 30, 0), new TimeSpan(16, 20, 0)),
+                [8] = (new TimeSpan(16, 30, 0), new TimeSpan(17, 20, 0))
+            };
 
             var schedules = new List<CourseSchedule>();
 
-            // --- A) OTOMATİK DERSLER: ŞU AN AKTİF OLACAK ŞEKİLDE BUGÜNE KOYULUYOR ---
-            // CMPE428: 1 dk önce başladı, 49 dk sonra bitecek  -> worker AÇMALI (hemen)
-            // CMPE419: 2 dk önce başladı                       -> worker AÇMALI (hemen)
-            // BLGM419: 5 dk SONRA başlayacak                   -> worker biraz bekleyip açmalı
-            void AddSlot(string courseCode, TimeSpan start, TimeSpan end, int locIndex)
+            void Add(string courseCode, DayOfWeek day, int period, int locIndex)
             {
-                var course = cList.First(c => c.CourseCode == courseCode);
-                var loc = lList[locIndex % lList.Count];
+                var c = C(courseCode);
                 schedules.Add(new CourseSchedule
                 {
-                    CourseId = course.Id,
-                    ClassLocationId = loc.Id,
-                    DayOfWeek = today,
-                    StartTime = Clamp(now.TimeOfDay.Add(start)),
-                    EndTime = Clamp(now.TimeOfDay.Add(end))
+                    CourseId = c.Id,
+                    ClassLocationId = L(locIndex).Id,
+                    DayOfWeek = day,
+                    StartTime = P[period].start,
+                    EndTime = P[period].end
                 });
             }
 
-            // start/end değerleri "şu ana göre dakika" cinsinden (negatif = geçmiş, pozitif = gelecek)
-            AddSlot("CMPE428", TimeSpan.FromMinutes(-1), TimeSpan.FromMinutes(10), 0); // ŞU AN aktif (hemen açılmalı)
-            AddSlot("CMPE419", TimeSpan.FromMinutes(-2), TimeSpan.FromMinutes(8), 1);  // ŞU AN aktif (hemen açılmalı)
-            AddSlot("BLGM419", TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(13), 2);  // 3 dk sonra açılacak
+            // -----------------------------------------------------------------------------
+            // HAFTALIK PROGRAM (min 4, max 6 slot/hafta)
+            // -----------------------------------------------------------------------------
 
-            // --- B) ESKİ TARZ TÜM GÜN/ TÜM HAFTA PROGRAMI (manuel görünüm için, otomatik kapalı dersler) ---
-            // Bunlar IsAutoAttendanceEnabled=false olduğu için worker bunları AÇMAZ,
-            // sadece ders programı dolu görünsün diye duruyor.
-            var fixedSlots = new List<(TimeSpan Start, TimeSpan End)>
-            {
-                (new TimeSpan(8,30,0),  new TimeSpan(9,20,0)),
-                (new TimeSpan(9,30,0),  new TimeSpan(10,20,0)),
-                (new TimeSpan(10,30,0), new TimeSpan(11,20,0)),
-                (new TimeSpan(11,30,0), new TimeSpan(12,20,0)),
-                (new TimeSpan(13,30,0), new TimeSpan(14,20,0)),
-                (new TimeSpan(14,30,0), new TimeSpan(15,20,0))
-            };
+            // CMPE428 - Software Engineering  => 5 slot/hafta
+            Add("CMPE428", DayOfWeek.Monday, 1, 0);
+            Add("CMPE428", DayOfWeek.Monday, 2, 0);
+            Add("CMPE428", DayOfWeek.Wednesday, 5, 1);
+            Add("CMPE428", DayOfWeek.Wednesday, 6, 1);
+            Add("CMPE428", DayOfWeek.Friday, 3, 0);
 
-            var manualCourses = cList.Where(c => !c.IsAutoAttendanceEnabled).ToList();
-            foreach (DayOfWeek day in Enum.GetValues(typeof(DayOfWeek)))
-            {
-                for (int i = 0; i < fixedSlots.Count && manualCourses.Count > 0; i++)
-                {
-                    var slot = fixedSlots[i];
-                    var course = manualCourses[i % manualCourses.Count];
-                    var location = lList[i % lList.Count];
+            // CMPE419 - Mobile App Dev (EN)   => 4 slot/hafta
+            Add("CMPE419", DayOfWeek.Monday, 5, 2);
+            Add("CMPE419", DayOfWeek.Tuesday, 1, 2);
+            Add("CMPE419", DayOfWeek.Tuesday, 2, 2);
+            Add("CMPE419", DayOfWeek.Thursday, 6, 2);
 
-                    schedules.Add(new CourseSchedule
-                    {
-                        CourseId = course.Id,
-                        ClassLocationId = location.Id,
-                        DayOfWeek = day,
-                        StartTime = slot.Start,
-                        EndTime = slot.End
-                    });
-                }
-            }
+            // BLGM419 - Mobil Uygulama (TR)   => 4 slot/hafta
+            Add("BLGM419", DayOfWeek.Tuesday, 3, 3);
+            Add("BLGM419", DayOfWeek.Wednesday, 1, 3);
+            Add("BLGM419", DayOfWeek.Wednesday, 2, 3);
+            Add("BLGM419", DayOfWeek.Friday, 6, 3);
+
+            // BLGM371 - Veritabani Sistemleri => 6 slot/hafta (maksimum)
+            Add("BLGM371", DayOfWeek.Monday, 3, 1);
+            Add("BLGM371", DayOfWeek.Monday, 4, 1);
+            Add("BLGM371", DayOfWeek.Wednesday, 3, 1);
+            Add("BLGM371", DayOfWeek.Wednesday, 4, 1);
+            Add("BLGM371", DayOfWeek.Friday, 1, 1);
+            Add("BLGM371", DayOfWeek.Friday, 2, 1);
+
+            // CMPE129 - Intro to Programming  => 5 slot/hafta
+            Add("CMPE129", DayOfWeek.Monday, 6, 0);
+            Add("CMPE129", DayOfWeek.Tuesday, 5, 0);
+            Add("CMPE129", DayOfWeek.Thursday, 1, 0);
+            Add("CMPE129", DayOfWeek.Thursday, 2, 0);
+            Add("CMPE129", DayOfWeek.Friday, 5, 0);
+
+            // BLGM353 - Isletim Sistemleri    => 4 slot/hafta
+            Add("BLGM353", DayOfWeek.Tuesday, 6, 1);
+            Add("BLGM353", DayOfWeek.Thursday, 3, 1);
+            Add("BLGM353", DayOfWeek.Thursday, 4, 1);
+            Add("BLGM353", DayOfWeek.Friday, 7, 1);
+
+            // EKON111 - Ekonomiye Giris       => 4 slot/hafta
+            Add("EKON111", DayOfWeek.Monday, 7, 2);
+            Add("EKON111", DayOfWeek.Tuesday, 7, 2);
+            Add("EKON111", DayOfWeek.Thursday, 5, 2);
+            Add("EKON111", DayOfWeek.Friday, 8, 2);
 
             await context.CourseSchedules.AddRangeAsync(schedules);
             await context.SaveChangesAsync();
 
-            // 🔍 TEST BİLGİSİ
+            // ==================================================================================
+            // OZET: Haftalik slot sayilari (min 4, max 6 dogrulamasi)
+            // ==================================================================================
             Console.WriteLine("==================================================");
-            Console.WriteLine($"[SEEDER] Şu an: {now:yyyy-MM-dd HH:mm:ss} ({today})");
-            Console.WriteLine($"[SEEDER] Otomatik test dersleri bugüne yerleştirildi:");
-            Console.WriteLine($"[SEEDER]   CMPE428 (QR)       -> {Clamp(now.TimeOfDay.Add(TimeSpan.FromMinutes(-1))):hh\\:mm} - şu an AKTİF, worker hemen açmalı");
-            Console.WriteLine($"[SEEDER]   CMPE419 (Konum)    -> {Clamp(now.TimeOfDay.Add(TimeSpan.FromMinutes(-2))):hh\\:mm} - şu an AKTİF, worker hemen açmalı");
-            Console.WriteLine($"[SEEDER]   BLGM419 (QR)       -> {Clamp(now.TimeOfDay.Add(TimeSpan.FromMinutes(3))):hh\\:mm} - 3 dk sonra açılmalı");
+            Console.WriteLine("[SEEDER] Haftalik ders programi kuruldu. Slot sayilari:");
+            foreach (var grp in schedules.GroupBy(s => s.CourseId))
+            {
+                var code = cList.First(c => c.Id == grp.Key).CourseCode;
+                Console.WriteLine($"[SEEDER]   {code}: {grp.Count()} slot/hafta");
+            }
+            Console.WriteLine($"[SEEDER] Bugun: {DateTime.Now:dddd HH:mm}");
+            Console.WriteLine("[SEEDER] Worker, bugunun gunune ve saatine denk gelen dersleri otomatik acacak.");
             Console.WriteLine("==================================================");
         }
     }
