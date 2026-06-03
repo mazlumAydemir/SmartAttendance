@@ -9,6 +9,7 @@ services:
     ports:
       - "7221:8080" # Bu API 7221 portundan çalışacak
     environment:
+      - "TZ=Europe/Istanbul"
       # Veritabanı olarak AZURE'u değil, Chat projesindeki SQL'i (chatapp_sql) hedef gösteriyoruz!
       
       - "ConnectionStrings__DefaultConnection=Server=158.220.105.185,1434;Database=SmartAttendanceDb;User Id=sa;Password=YourStrong@Passw0rd!;TrustServerCertificate=True;Encrypt=False;"

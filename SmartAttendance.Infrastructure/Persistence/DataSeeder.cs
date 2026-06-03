@@ -114,8 +114,9 @@ namespace SmartAttendance.Infrastructure.Persistence
                 var courses = new List<Course>
                 {
                     new Course { CourseCode = "CMPE428", CourseName = "Software Engineering",   InstructorId = mehmet.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    // CMPE419 (EN grup) ve BLGM419 (TR grup): AYNI HOCA, AYNI SAAT, AYNI SINIF - farkli ogrenci gruplari
                     new Course { CourseCode = "CMPE419", CourseName = "Mobile App Dev (EN)",     InstructorId = mehmet.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.Location, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
-                    new Course { CourseCode = "BLGM419", CourseName = "Mobil Uygulama (TR)",     InstructorId = mehmet.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
+                    new Course { CourseCode = "BLGM419", CourseName = "Mobil Uygulama (TR)",     InstructorId = mehmet.Id, IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.Location, DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
                     new Course { CourseCode = "BLGM371", CourseName = "Veritabani Sistemleri",   InstructorId = ahmet.Id,  IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
                     new Course { CourseCode = "CMPE129", CourseName = "Intro. to Programming",   InstructorId = ahmet.Id,  IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
                     new Course { CourseCode = "BLGM353", CourseName = "Isletim Sistemleri",      InstructorId = elif.Id,   IsAutoAttendanceEnabled = true, DefaultMethod = AttendanceMethod.QrCode,   DefaultDurationMinutes = 50, DefaultRadiusMeters = 50 },
@@ -126,20 +127,35 @@ namespace SmartAttendance.Infrastructure.Persistence
             }
 
             // ==================================================================================
-            // 4. DERS KAYITLARI (Her ogrenci her derse kayitli - test kolayligi icin)
+            // 4. DERS KAYITLARI
+            //    CMPE419 (EN) ve BLGM419 (TR) FARKLI ogrenci gruplari almali.
+            //    Ogrencileri ikiye boluyoruz: yari EN grubu, yari TR grubu.
+            //    Diger dersleri herkes aliyor (test kolayligi).
             // ==================================================================================
             if (!await context.CourseEnrollments.AnyAsync())
             {
-                var students = await context.Users.Where(u => u.Role == UserRole.Student).ToListAsync();
+                var students = await context.Users.Where(u => u.Role == UserRole.Student).OrderBy(u => u.Id).ToListAsync();
                 var courses = await context.Courses.ToListAsync();
 
+                int Cid(string code) => courses.First(c => c.CourseCode == code).Id;
+
                 var enrollments = new List<CourseEnrollment>();
-                foreach (var student in students)
+
+                // Ortak dersler: herkes alir
+                var commonCourses = new[] { "CMPE428", "BLGM371", "CMPE129", "BLGM353", "EKON111" };
+
+                for (int i = 0; i < students.Count; i++)
                 {
-                    foreach (var course in courses)
-                    {
-                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = course.Id });
-                    }
+                    var student = students[i];
+
+                    foreach (var code in commonCourses)
+                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = Cid(code) });
+
+                    // 419 dersi: ogrencilerin yarisi EN (CMPE419) grubunda, yarisi TR (BLGM419) grubunda
+                    if (i % 2 == 0)
+                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = Cid("CMPE419") }); // EN grubu
+                    else
+                        enrollments.Add(new CourseEnrollment { StudentId = student.Id, CourseId = Cid("BLGM419") }); // TR grubu
                 }
 
                 await context.CourseEnrollments.AddRangeAsync(enrollments);
@@ -149,7 +165,7 @@ namespace SmartAttendance.Infrastructure.Persistence
             // ==================================================================================
             // 5. DERS PROGRAMI  - GERCEKCI HAFTALIK PLAN
             //    Kural: Her ders haftada EN AZ 4, EN FAZLA 6 slot (saat).
-            //    Sabit ve gercek saatler kullaniliyor. Worker bu saatlerde dersi acar.
+            //    CMPE419 ve BLGM419: BIREBIR AYNI gun/saat/sinif (paralel sube).
             //    NOT: Eski programi siler, yeniden kurar.
             // ==================================================================================
             var oldSchedules = await context.CourseSchedules.ToListAsync();
@@ -193,6 +209,13 @@ namespace SmartAttendance.Infrastructure.Persistence
                 });
             }
 
+            // CMPE419 ve BLGM419'u her zaman BIRLIKTE ekleyen yardimci (ayni gun/saat/sinif)
+            void Add419Pair(DayOfWeek day, int period, int locIndex)
+            {
+                Add("CMPE419", day, period, locIndex);
+                Add("BLGM419", day, period, locIndex);
+            }
+
             // -----------------------------------------------------------------------------
             // HAFTALIK PROGRAM (min 4, max 6 slot/hafta)
             // -----------------------------------------------------------------------------
@@ -204,17 +227,11 @@ namespace SmartAttendance.Infrastructure.Persistence
             Add("CMPE428", DayOfWeek.Wednesday, 6, 1);
             Add("CMPE428", DayOfWeek.Friday, 3, 0);
 
-            // CMPE419 - Mobile App Dev (EN)   => 4 slot/hafta
-            Add("CMPE419", DayOfWeek.Monday, 5, 2);
-            Add("CMPE419", DayOfWeek.Tuesday, 1, 2);
-            Add("CMPE419", DayOfWeek.Tuesday, 2, 2);
-            Add("CMPE419", DayOfWeek.Thursday, 6, 2);
-
-            // BLGM419 - Mobil Uygulama (TR)   => 4 slot/hafta
-            Add("BLGM419", DayOfWeek.Tuesday, 3, 3);
-            Add("BLGM419", DayOfWeek.Wednesday, 1, 3);
-            Add("BLGM419", DayOfWeek.Wednesday, 2, 3);
-            Add("BLGM419", DayOfWeek.Friday, 6, 3);
+            // CMPE419 (EN) + BLGM419 (TR) PARALEL => her ikisi de 4 slot/hafta, BIREBIR ayni zaman/sinif
+            Add419Pair(DayOfWeek.Monday, 5, 2);
+            Add419Pair(DayOfWeek.Tuesday, 1, 2);
+            Add419Pair(DayOfWeek.Tuesday, 2, 2);
+            Add419Pair(DayOfWeek.Thursday, 6, 2);
 
             // BLGM371 - Veritabani Sistemleri => 6 slot/hafta (maksimum)
             Add("BLGM371", DayOfWeek.Monday, 3, 1);
@@ -238,10 +255,10 @@ namespace SmartAttendance.Infrastructure.Persistence
             Add("BLGM353", DayOfWeek.Friday, 7, 1);
 
             // EKON111 - Ekonomiye Giris       => 4 slot/hafta
-            Add("EKON111", DayOfWeek.Monday, 7, 2);
-            Add("EKON111", DayOfWeek.Tuesday, 7, 2);
-            Add("EKON111", DayOfWeek.Thursday, 5, 2);
-            Add("EKON111", DayOfWeek.Friday, 8, 2);
+            Add("EKON111", DayOfWeek.Monday, 7, 3);
+            Add("EKON111", DayOfWeek.Tuesday, 7, 3);
+            Add("EKON111", DayOfWeek.Thursday, 5, 3);
+            Add("EKON111", DayOfWeek.Friday, 8, 3);
 
             await context.CourseSchedules.AddRangeAsync(schedules);
             await context.SaveChangesAsync();
@@ -256,8 +273,9 @@ namespace SmartAttendance.Infrastructure.Persistence
                 var code = cList.First(c => c.Id == grp.Key).CourseCode;
                 Console.WriteLine($"[SEEDER]   {code}: {grp.Count()} slot/hafta");
             }
+            Console.WriteLine("[SEEDER] NOT: CMPE419 ve BLGM419 ayni gun/saat/sinifta (paralel sube).");
+            Console.WriteLine("[SEEDER]      Worker bu saatte IKI ayri oturum acar (her grup kendi oturumuna katilir).");
             Console.WriteLine($"[SEEDER] Bugun: {DateTime.Now:dddd HH:mm}");
-            Console.WriteLine("[SEEDER] Worker, bugunun gunune ve saatine denk gelen dersleri otomatik acacak.");
             Console.WriteLine("==================================================");
         }
     }
