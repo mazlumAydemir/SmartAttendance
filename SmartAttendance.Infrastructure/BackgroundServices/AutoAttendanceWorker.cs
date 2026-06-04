@@ -118,7 +118,7 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                     InstructorId = settings.InstructorId,
                     StartTime = DateTime.Now,
                     IsActive = true,
-                    EndTime = now.Date.Add(schedule.EndTime), // ⭐ Bitiş, ders programındaki bitiş saati olsun
+                    EndTime = DateTime.Now.AddMinutes(settings.DefaultDurationMinutes), // ⭐ Açılış anı + dersin kendi süresi (ör. 10 dk). Program bitişine bakmaz.
                     Method = settings.DefaultMethod,
                     RequireFaceVerification = (settings.DefaultMethod == AttendanceMethod.CrowdScan),
                     RequireDeviceVerification = true,
@@ -138,7 +138,7 @@ namespace SmartAttendance.Infrastructure.BackgroundServices
                 });
                 await context.SaveChangesAsync();
 
-                Console.WriteLine($"[OTOMATİK BAŞLATILDI] ✅ {settings.CourseCode} | Yöntem: {settings.DefaultMethod} | Bitiş: {newSession.EndTime:HH:mm} | ID: {newSession.Id}");
+                Console.WriteLine($"[OTOMATİK BAŞLATILDI] ✅ {settings.CourseCode} | Yöntem: {settings.DefaultMethod} | Süre: {settings.DefaultDurationMinutes} dk | Açılış: {newSession.StartTime:HH:mm:ss} -> Kapanış: {newSession.EndTime:HH:mm:ss} | ID: {newSession.Id}");
             }
         }
 
