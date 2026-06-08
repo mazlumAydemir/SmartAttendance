@@ -61,21 +61,21 @@ namespace SmartAttendance.Infrastructure.Persistence
             {
                 var users = new List<User>
                 {
-                    new User { FullName = "Sistem Admin", Email = "admin@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Admin },
+                    new User { FullName = "Sistem Admin", Email = "admin@emu.edu.tr", PasswordHash = passHash, Role = UserRole.Admin },
 
-                    new User { FullName = "Mehmet Demir", Email = "mehmet@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
-                    new User { FullName = "Ahmet Ozseven", Email = "ahmet.ozseven@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
-                    new User { FullName = "Elif Bozkurt", Email = "elif.bozkurt@smart.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
+                    new User { FullName = "Ahmet Ozseven", Email = "mehmet@emu.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
+                    new User { FullName = "Ahmet Ozseven", Email = "ahmet.ozseven@emu.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
+                    new User { FullName = "Elif Bozkurt", Email = "elif.bozkurt@emu.edu.tr", PasswordHash = passHash, Role = UserRole.Instructor },
 
                     new User { FullName = "Mazlum Aydemir", Email = "mazlum@std.smart.edu.tr", SchoolNumber="23002741", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = mazlumFaceVectorJson, ProfilePictureUrl = "/img/mazlumAydemir.jpeg" },
-                    new User { FullName = "ibrahim filoglu", Email = "ibrahim@std.smart.edu.tr", SchoolNumber="23002742", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = ibrahimFaceVectorJson, ProfilePictureUrl = "/img/ibrahim.jpeg" },
-                    new User { FullName = "Eren Sakalli", Email = "eren@std.smart.edu.tr", SchoolNumber="23002752", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = erenFaceVectorJson, ProfilePictureUrl = "/img/eren.jpeg" },
-                    new User { FullName = "Ayse Demir", Email = "ayse@std.smart.edu.tr", SchoolNumber="23002743", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Fatma Sahin", Email = "fatma@std.smart.edu.tr", SchoolNumber="23002744", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Mehmet Can", Email = "mehmet@std.smart.edu.tr", SchoolNumber="23002745", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Zeynep Celik", Email = "zeynep@std.smart.edu.tr", SchoolNumber="23002746", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Burak Tekin", Email = "burak@std.smart.edu.tr", SchoolNumber="23002747", PasswordHash = passHash, Role = UserRole.Student },
-                    new User { FullName = "Cemre Yildiz", Email = "cemre@std.smart.edu.tr", SchoolNumber="23002748", PasswordHash = passHash, Role = UserRole.Student }
+                    new User { FullName = "ibrahim filoglu", Email = "ibrahim@emu.edu.tr", SchoolNumber="23002742", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = ibrahimFaceVectorJson, ProfilePictureUrl = "/img/ibrahim.jpeg" },
+                    new User { FullName = "Eren Sakalli", Email = "eren@emu.edu.tr", SchoolNumber="23002752", PasswordHash = passHash, Role = UserRole.Student, FaceEncoding = erenFaceVectorJson, ProfilePictureUrl = "/img/eren.jpeg" },
+                    new User { FullName = "Ayse Demir", Email = "ayse@emu.edu.tr", SchoolNumber="23002743", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Fatma Sahin", Email = "fatma@emu.edu.tr", SchoolNumber="23002744", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Mehmet Can", Email = "mehmet@emu.edu.tr", SchoolNumber="23002745", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Zeynep Celik", Email = "zeynep@emu.edu.tr", SchoolNumber="23002746", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Burak Tekin", Email = "burak@emu.edu.tr", SchoolNumber="23002747", PasswordHash = passHash, Role = UserRole.Student },
+                    new User { FullName = "Cemre Yildiz", Email = "cemre@emu.edu.tr", SchoolNumber="23002748", PasswordHash = passHash, Role = UserRole.Student }
                 };
                 await context.Users.AddRangeAsync(users);
                 await context.SaveChangesAsync();
@@ -107,9 +107,9 @@ namespace SmartAttendance.Infrastructure.Persistence
             // ==================================================================================
             if (!await context.Courses.AnyAsync())
             {
-                var mehmet = await context.Users.FirstAsync(u => u.Email == "mehmet@smart.edu.tr");
-                var ahmet = await context.Users.FirstAsync(u => u.Email == "ahmet.ozseven@smart.edu.tr");
-                var elif = await context.Users.FirstAsync(u => u.Email == "elif.bozkurt@smart.edu.tr");
+                var mehmet = await context.Users.FirstAsync(u => u.Email == "mehmet@emu.edu.tr");
+                var ahmet = await context.Users.FirstAsync(u => u.Email == "ahmet.ozseven@emu.edu.tr");
+                var elif = await context.Users.FirstAsync(u => u.Email == "elif.bozkurt@emu.edu.tr");
 
                 var courses = new List<Course>
                 {

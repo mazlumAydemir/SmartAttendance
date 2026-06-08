@@ -364,6 +364,15 @@ namespace SmartAttendance.WebAPI.Controllers
             var result = await _attendanceService.GetStudentCourseHistoryAsync(studentId, courseId);
             return Ok(result);
         }
+        [HttpDelete("instructor/session/{sessionId}")]
+        public async Task<IActionResult> DeleteSession(int sessionId)
+        {
+            // Token'dan hocanın ID'sini al (Sisteminde nasıl alıyorsan ona uyarla)
+            var instructorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+
+            await _attendanceService.DeleteSessionAsync(sessionId, instructorId);
+            return Ok(new { Message = "Yoklama başarıyla silindi ve kayıtlardan çıkarıldı." });
+        }
 
         // ======================================================================
         // ⭐ HOCA: YAPAY ZEKA İLE SINIF TARAMASI (PANORAMİK) ⭐
@@ -443,6 +452,8 @@ namespace SmartAttendance.WebAPI.Controllers
             {
                 return StatusCode(500, new { message = $"Sınıf tarama hatası: {ex.Message}" });
             }
+
         }
+
     }
 }

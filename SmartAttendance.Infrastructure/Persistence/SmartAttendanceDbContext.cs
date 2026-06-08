@@ -90,6 +90,7 @@ namespace SmartAttendance.Infrastructure.Persistence
             modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
             modelBuilder.Entity<Course>().HasQueryFilter(c => !c.IsDeleted);
 
+            modelBuilder.Entity<AttendanceSession>().HasQueryFilter(s => !s.IsDeleted);
             base.OnModelCreating(modelBuilder);
         }
     }

@@ -77,5 +77,7 @@ namespace SmartAttendance.Application.Interfaces
         Task<List<CourseDto>> GetStudentCoursesAsync(int studentId);
 
         Task<List<StudentAttendanceHistoryDto>> GetStudentCourseHistoryAsync(int studentId, int courseId);
+
+        Task<bool> DeleteSessionAsync(int sessionId, int instructorId);
     }
 }

@@ -986,5 +986,45 @@ namespace SmartAttendance.Infrastructure.Services
 
             return history;
         }
+        // ==================================================================================
+        // HOCA: YOKLAMAYI SİL (SOFT DELETE - GÜVENLİ YÖNTEM)
+        // ==================================================================================
+        public async Task<bool> DeleteSessionAsync(int sessionId, int instructorId)
+        {
+            // 1. Oturumu bul
+            var session = await _context.AttendanceSessions.FindAsync(sessionId);
+
+            // Eğer zaten silinmişse veya yoksa hata fırlat
+            if (session == null || session.IsDeleted)
+                throw new Exception("Silinmek istenen oturum bulunamadı.");
+
+            // 2. Güvenlik: Sadece oturumu başlatan hoca silebilir
+            if (session.InstructorId != instructorId)
+                throw new Exception("Bu oturumu silme yetkiniz yok.");
+
+            bool wasActive = session.IsActive;
+
+            // 🔥 İŞTE SENİN HARİKA FİKRİN: SOFT DELETE 🔥
+            session.IsDeleted = true;
+            session.IsActive = false; // Eğer yoklama o an açıksa, pasife de çekelim
+
+            // Sadece bir güncelleme yapıyoruz, veritabanı "Foreign Key" kızmayacak!
+            await _context.SaveChangesAsync();
+
+            // 3. Eğer yoklama hala açıkken silindiyse, öğrencilerin ekranından anında kaybolsun
+            if (wasActive)
+            {
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("SessionEndedGlobal", sessionId);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SignalR Hatası] {ex.Message}");
+                }
+            }
+
+            return true;
+        }
     }
 }
